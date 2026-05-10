@@ -1,0 +1,1526 @@
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CASL × UPDATE4D — Content-Addressed Sonic Session</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&amp;family=Orbitron:wght@700;900&amp;display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════
+   TOKENS — Both palettes unified
+══════════════════════════════════════════════ */
+:root {
+  --bg:    #04040c;
+  --bg1:   #07090f;
+  --bg2:   #0b0d16;
+  --bg3:   #0e1120;
+  --panel: #060810;
+  --border: #14182a;
+  --border2: #1e2440;
+
+  --text:  #b8c4dc;
+  --dim:   #3a4a62;
+  --muted: #1a2234;
+
+  --green:  #00e07a;   /* machine A / origin */
+  --blue:   #00aaff;   /* machine B / replica */
+  --amber:  #f5a623;   /* time / collapse */
+  --violet: #a78bfa;   /* IPFS / helia */
+  --red:    #ff2244;
+  --mel:    #00ff77;   /* melodic */
+  --harm:   #00c8ff;   /* harmonic */
+  --pulse:  #ff4422;   /* pulse */
+  --tex:    #cc66ff;   /* texture */
+  --entropy:#cc66ff;
+
+  --nodeA:  #00c8ff;
+  --nodeB:  #ff6633;
+  --converge:#00ff77;
+  --collapse:#f5a623;
+
+  --font: 'JetBrains Mono', 'Courier New', monospace;
+  --display: 'Orbitron', monospace;
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:var(--font); font-size:12px; }
+::-webkit-scrollbar { width:3px; height:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+@keyframes fadeUp  { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+@keyframes blink   { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes pulse-a { 0%,100%{opacity:1} 50%{opacity:.2} }
+@keyframes slideIn { from{opacity:0;transform:translateX(-4px)} to{opacity:1;transform:translateX(0)} }
+@keyframes spin    { to{transform:rotate(360deg)} }
+@keyframes glow    { 0%,100%{box-shadow:0 0 0 0 #a78bfa18} 50%{box-shadow:0 0 8px 2px #a78bfa14} }
+@keyframes flash   { 0%{background:#00e07a18} 100%{background:transparent} }
+@keyframes pdot    { 0%,100%{opacity:1;transform:scale(1)} 50%{transform:scale(.7)} }
+
+/* ══ APP SHELL ══ */
+#app { display:flex; flex-direction:column; height:100vh; }
+
+/* ══ HEADER ══ */
+#hdr {
+  display:flex; align-items:center; gap:10px;
+  padding:6px 16px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg1);
+  flex-shrink:0;
+  min-height:46px;
+  position:relative;
+}
+#hdr::after {
+  content:''; position:absolute; bottom:-1px; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--green) 15%,var(--amber) 40%,var(--blue) 65%,var(--mel) 85%,transparent);
+  opacity:.6;
+}
+.logo { display:flex; align-items:center; gap:8px; }
+.logo-hex { color:var(--green); font-size:18px; }
+.logo-title { font-family:var(--display); font-size:13px; font-weight:900; color:var(--amber); letter-spacing:2px; }
+.logo-sub { font-size:9px; color:var(--dim); letter-spacing:1.5px; margin-top:1px; }
+
+.hdr-block { display:flex; flex-direction:column; gap:1px; padding:0 10px; border-left:1px solid var(--border); }
+.hdr-lbl { font-size:9px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; }
+.hdr-val { font-family:var(--display); font-size:13px; font-weight:900; color:var(--amber); line-height:1; }
+
+.phase-strip { display:flex; gap:3px; margin-left:4px; }
+.ph-pill { font-size:9px; font-weight:700; letter-spacing:1px; padding:3px 7px; border:1px solid var(--border2); color:var(--dim); border-radius:2px; transition:all .2s; }
+.ph-pill.active { color:#000; }
+.ph-EXPANSION.active  { background:var(--mel);    border-color:var(--mel);    color:#000; }
+.ph-DEVELOPMENT.active{ background:var(--harm);   border-color:var(--harm);   color:#000; }
+.ph-PEAK.active       { background:var(--amber);  border-color:var(--amber);  color:#000; }
+.ph-COMPRESSION.active{ background:var(--tex);    border-color:var(--tex);    color:#000; }
+
+.hdr-stat { display:flex; flex-direction:column; align-items:flex-end; }
+.hdr-stat .v { font-size:14px; font-weight:700; }
+.hdr-stat .l { font-size:8px; letter-spacing:1.5px; color:var(--dim); }
+
+.transport { margin-left:auto; display:flex; gap:6px; align-items:center; }
+
+.eng-state { display:flex; align-items:center; gap:5px; padding:3px 9px; border:1px solid var(--border2); border-radius:2px; background:var(--bg2); font-size:10px; font-weight:700; letter-spacing:1px; }
+.eng-dot { width:6px; height:6px; border-radius:50%; background:var(--dim); flex-shrink:0; }
+.eng-dot.idle      { background:var(--dim); }
+.eng-dot.running   { background:var(--amber); animation:pdot .8s ease-in-out infinite; }
+.eng-dot.converged { background:var(--converge); }
+.eng-dot.collapsed { background:var(--collapse); }
+.eng-dot.error     { background:var(--red); }
+
+.btn {
+  background:var(--bg2); border:1px solid var(--border2); color:var(--text);
+  font-family:var(--font); font-size:10px; font-weight:700;
+  padding:4px 10px; cursor:pointer; letter-spacing:1px; transition:all .12s;
+}
+.btn:hover { border-color:var(--amber); color:var(--amber); }
+.btn.active { background:var(--amber); color:#000; border-color:var(--amber); }
+.btn:disabled { opacity:.25; cursor:not-allowed; }
+.btn.green-btn { border-color:#00e07a40; color:var(--green); }
+.btn.green-btn:hover { background:#00e07a18; }
+
+/* ══ BODY ══ */
+#body { display:flex; flex:1; overflow:hidden; }
+
+/* ══ LEFT — CHAT MACHINES ══ */
+#machines { display:flex; flex-direction:column; width:300px; flex-shrink:0; border-right:1px solid var(--border); }
+
+.machine { flex:1; display:flex; flex-direction:column; min-height:0; border-bottom:1px solid var(--border); }
+.machine:last-child { border-bottom:none; }
+
+.mhdr { display:flex; justify-content:space-between; align-items:center; padding:7px 12px; border-bottom:1px solid var(--border); background:var(--bg1); flex-shrink:0; }
+.mtitle { font-size:10px; font-weight:700; letter-spacing:2px; }
+.msub   { font-size:8px; color:var(--dim); margin-top:2px; }
+.badge  { font-size:8px; letter-spacing:1.5px; padding:2px 7px; border-radius:2px; border:1px solid; white-space:nowrap; }
+
+.chatarea { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:7px; }
+.empty { text-align:center; color:var(--muted); font-size:10px; line-height:2; margin:auto; pointer-events:none; }
+.empty small { color:var(--border2); font-size:8px; display:block; }
+
+.msg { display:flex; flex-direction:column; gap:2px; padding:7px 9px; border-radius:2px; border:1px solid; max-width:94%; animation:fadeUp .18s ease; }
+.msg.user      { align-self:flex-end; }
+.msg.assistant { align-self:flex-start; }
+.mrole { font-size:8px; font-weight:600; letter-spacing:1.5px; }
+.mtext { font-size:10px; line-height:1.6; color:var(--text); white-space:pre-wrap; word-break:break-word; }
+
+#ma .msg.user      { background:#08180f; border-color:#00e07a12; }
+#ma .msg.assistant { background:var(--bg2); border-color:var(--border); }
+#ma .mrole.user    { color:var(--green); }
+#mb .msg.user      { background:#07141e; border-color:#00aaff12; }
+#mb .msg.assistant { background:var(--bg2); border-color:var(--border); }
+#mb .mrole.user    { color:var(--blue); }
+.mrole.assistant   { color:var(--dim); }
+
+.thinking { align-self:flex-start; padding:7px 9px; background:var(--bg2); border:1px solid var(--border); border-radius:2px; color:var(--dim); font-size:10px; }
+.cur { animation:blink .8s infinite; }
+
+.inparea { display:flex; gap:6px; padding:8px 10px; flex-shrink:0; border-top:1px solid var(--border); background:var(--bg1); }
+.inp { flex:1; background:var(--bg2); border:1px solid var(--border2); color:var(--text); font-family:var(--font); font-size:10px; padding:6px 9px; border-radius:2px; outline:none; transition:border-color .2s; }
+.inp:focus    { border-color:var(--green); }
+.inp:disabled { opacity:.35; }
+.sbtn { background:var(--green); color:#000; border:none; font-family:var(--font); font-size:12px; font-weight:700; padding:6px 11px; cursor:pointer; border-radius:2px; }
+.sbtn:disabled { opacity:.2; cursor:default; }
+
+.ttbar { display:none; align-items:center; justify-content:space-between; padding:6px 12px; border-top:1px solid var(--border); background:#0c0a00; color:var(--amber); font-size:9px; letter-spacing:1px; flex-shrink:0; }
+.ttbtn { background:transparent; border:1px solid var(--amber); color:var(--amber); font-family:var(--font); font-size:9px; letter-spacing:1px; padding:2px 7px; cursor:pointer; border-radius:2px; }
+.ttbtn:hover { background:var(--amber); color:#000; }
+
+.repfoot { padding:5px 12px; border-top:1px solid var(--border); display:flex; gap:6px; align-items:center; flex-shrink:0; background:var(--bg1); }
+.reptxt { font-size:8px; color:var(--dim); }
+
+/* Token sonic flash in chat */
+.msg.sonic-flash { animation:flash .5s ease; }
+
+/* ══ CENTER — EVENT LOG + CONTROLS ══ */
+#ctr { width:190px; flex-shrink:0; display:flex; flex-direction:column; background:var(--bg1); border-left:1px solid var(--border); border-right:1px solid var(--border); }
+.ctrtitle { padding:7px 10px; font-size:8px; letter-spacing:2.5px; color:var(--dim); border-bottom:1px solid var(--border); font-weight:600; flex-shrink:0; }
+
+#evlog { flex:1; overflow-y:auto; padding:5px; display:flex; flex-direction:column; gap:2px; }
+.nev { color:var(--muted); font-size:9px; text-align:center; padding:14px 6px; line-height:2; }
+.nev small { color:var(--border2); font-size:8px; display:block; }
+
+.ev { padding:5px 7px; border-radius:2px; border:1px solid transparent; cursor:pointer; transition:all .12s; animation:slideIn .15s ease; }
+.ev:hover { background:var(--bg2); border-color:var(--border2); }
+.ev.sel   { background:#0a0800; border-color:#ffaa0022; }
+
+.evtype { font-size:8px; font-weight:600; letter-spacing:.5px; display:flex; align-items:center; gap:4px; }
+.evsha  { font-size:7px; color:var(--muted); margin-top:2px; transition:color .3s; }
+.evsha.synced { color:var(--dim); }
+.evcid  { font-size:7px; color:#a78bfa40; margin-top:1px; display:none; }
+.evcid.on { display:block; }
+.evpar  { font-size:7px; color:var(--border2); margin-top:1px; }
+.evtok  { font-size:7px; color:var(--amber); margin-top:1px; opacity:.7; }
+.syndot { margin-left:auto; font-size:7px; color:var(--border2); transition:color .3s; }
+.syndot.synced { color:var(--green); }
+
+#syncind { display:none; padding:4px 10px; font-size:8px; letter-spacing:1px; color:var(--amber); text-align:center; border-top:1px solid var(--border); animation:pulse-a .5s ease; }
+
+/* Time travel */
+#ttctrl { border-top:1px solid var(--border); padding:8px 10px; flex-shrink:0; }
+#ttlbl  { font-size:8px; letter-spacing:1.5px; color:var(--dim); margin-bottom:5px; display:flex; justify-content:space-between; }
+#slider { width:100%; cursor:pointer; accent-color:var(--amber); }
+
+/* Global audio controls */
+#audio-ctrl { padding:8px 10px; border-top:1px solid var(--border); flex-shrink:0; }
+#audio-ctrl label { font-size:8px; letter-spacing:1.5px; color:var(--dim); display:block; margin-bottom:3px; }
+.ctl-row { display:flex; align-items:center; gap:5px; margin-bottom:4px; font-size:8px; color:var(--dim); }
+.ctl-row input[type=range] { flex:1; height:2px; accent-color:var(--amber); cursor:pointer; }
+.ctl-val { min-width:20px; text-align:right; color:var(--amber); font-size:8px; }
+
+/* Model cfg */
+#modelcfg { padding:6px 10px; border-top:1px solid var(--border); flex-shrink:0; }
+#modelcfg label { font-size:8px; letter-spacing:1.5px; color:var(--dim); display:block; margin-bottom:3px; }
+#modelinp { width:100%; background:var(--bg2); border:1px solid var(--border2); color:var(--text); font-family:var(--font); font-size:9px; padding:3px 7px; border-radius:2px; outline:none; }
+#modelinp:focus { border-color:var(--amber); }
+
+/* IPFS panel */
+#ipfs-panel { border-top:1px solid var(--border); padding:8px 10px; flex-shrink:0; }
+.iph-row  { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
+.iph-lbl  { font-size:8px; letter-spacing:2px; color:var(--dim); }
+#ipfs-tog {
+  background:transparent; border:1px solid var(--border2); color:var(--dim);
+  font-family:var(--font); font-size:8px; letter-spacing:1px;
+  padding:2px 8px; cursor:pointer; border-radius:2px; transition:all .2s;
+}
+#ipfs-tog.on { border-color:#a78bfa35; color:var(--violet); background:#a78bfa08; animation:glow 2.5s infinite; }
+#ipfs-tog:hover { border-color:var(--border); color:var(--text); }
+#ipfs-st { font-size:8px; color:var(--dim); min-height:11px; }
+#ipfs-st.ok  { color:var(--violet); }
+#ipfs-st.err { color:#ff4455; }
+#ipfs-st.spin::after { content:''; display:inline-block; width:6px; height:6px; border:1px solid #a78bfa28; border-top-color:var(--violet); border-radius:50%; animation:spin .6s linear infinite; margin-left:4px; vertical-align:middle; }
+.istat-row { display:none; justify-content:space-between; margin-top:6px; }
+.istat-row.on { display:flex; }
+.ist .iv { font-size:10px; font-weight:600; color:var(--violet); }
+.ist .il { font-size:7px; letter-spacing:1px; color:var(--dim); }
+.iact-row { display:none; gap:4px; margin-top:6px; }
+.iact-row.on { display:flex; }
+.iact { flex:1; background:transparent; border:1px solid #a78bfa18; color:var(--violet); font-family:var(--font); font-size:7px; letter-spacing:.5px; padding:3px 0; cursor:pointer; border-radius:2px; transition:all .15s; }
+.iact:hover { background:#a78bfa0c; border-color:#a78bfa35; }
+
+/* ══ RIGHT — PROJECTION ENGINE ══ */
+#projection { flex:1; display:flex; flex-direction:column; min-width:0; overflow:hidden; }
+
+/* View switcher tabs */
+.view-tabs { display:flex; border-bottom:1px solid var(--border); background:var(--bg1); flex-shrink:0; }
+.vt { flex:1; padding:7px 4px; font-size:9px; font-weight:700; letter-spacing:1px; text-align:center; background:transparent; border:none; color:var(--dim); cursor:pointer; border-right:1px solid var(--border); transition:all .15s; font-family:var(--font); }
+.vt:last-child { border-right:none; }
+.vt.active { color:var(--amber); background:var(--bg2); }
+.vt:hover:not(.active) { color:var(--text); }
+
+/* Canvas views */
+.view { display:none; flex:1; position:relative; overflow:hidden; }
+.view.active { display:flex; flex-direction:column; }
+.view canvas { flex:1; width:100%; display:block; }
+.view-lbl { position:absolute; top:5px; left:7px; font-size:9px; color:var(--white); letter-spacing:1.5px; opacity:.4; pointer-events:none; z-index:5; font-family:var(--font); }
+
+/* Z-plane overlays */
+.zp-overlay { position:absolute; top:5px; right:7px; display:flex; flex-direction:column; gap:2px; pointer-events:none; z-index:10; }
+.zp-stat { font-size:9px; color:var(--text); letter-spacing:1.5px; background:rgba(4,4,12,.88); padding:1px 6px; border-left:2px solid var(--dim); font-family:var(--font); }
+.zp-btns { position:absolute; bottom:5px; left:7px; display:flex; gap:3px; z-index:10; }
+.zp-btn { background:rgba(4,4,12,.88); border:1px solid var(--border2); color:var(--text); font-family:var(--font); font-size:10px; font-weight:700; padding:2px 7px; cursor:pointer; letter-spacing:1px; }
+.zp-btn.on { border-color:var(--entropy); color:var(--entropy); }
+
+/* Event→Token trace */
+.ev-token-trace { position:absolute; bottom:0; left:0; right:0; padding:5px 8px; background:rgba(4,4,12,.92); border-top:1px solid var(--border); font-size:10px; color:var(--dim); display:flex; gap:8px; align-items:center; flex-wrap:wrap; pointer-events:none; z-index:10; }
+.ev-tok-chip { padding:1px 5px; border:1px solid var(--border2); border-radius:2px; font-size:9px; }
+
+/* Pos bar */
+.pos-bar { display:flex; gap:0; border-top:1px solid var(--border); background:var(--bg1); flex-shrink:0; }
+.pos-item { display:flex; flex-direction:column; align-items:center; padding:4px 10px; border-right:1px solid var(--border); gap:1px; }
+.pos-item:last-child { border-right:none; margin-left:auto; }
+.pos-label { font-size:8px; color:var(--dim); letter-spacing:1px; }
+.pos-val { font-family:var(--display); font-size:11px; font-weight:700; color:var(--amber); }
+
+/* Collapse output (CASL event that triggered) */
+.collapse-strip { padding:5px 10px; border-top:1px solid var(--border); background:var(--panel); flex-shrink:0; display:flex; gap:8px; align-items:center; }
+.cs-label { font-size:8px; letter-spacing:1.5px; color:var(--dim); white-space:nowrap; }
+.cs-val { font-size:10px; color:var(--amber); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cs-hash { font-size:8px; color:var(--violet); white-space:nowrap; }
+
+/* IPFS import (Machine B) */
+#ipfs-import { display:none; padding:8px 10px; border-top:1px solid var(--border); background:var(--bg1); flex-shrink:0; }
+#ipfs-import.on { display:block; }
+.imp-lbl  { font-size:8px; letter-spacing:1.5px; color:var(--violet); margin-bottom:5px; }
+#cid-paste { width:100%; background:var(--bg2); border:1px solid #a78bfa18; color:var(--text); font-family:var(--font); font-size:8px; padding:5px 7px; border-radius:2px; outline:none; resize:none; height:44px; }
+#cid-paste:focus { border-color:#a78bfa32; }
+.imp-row { display:flex; gap:5px; margin-top:5px; }
+.imp-btn { flex:1; background:transparent; border:1px solid #a78bfa22; color:var(--violet); font-family:var(--font); font-size:8px; letter-spacing:.5px; padding:4px 0; cursor:pointer; border-radius:2px; transition:all .15s; }
+.imp-btn:hover { background:#a78bfa0c; border-color:#a78bfa38; }
+#fetch-st { font-size:8px; color:var(--dim); margin-top:4px; min-height:11px; }
+
+/* Kubo row */
+.kubo-row { display:none; align-items:center; gap:4px; margin-top:5px; font-size:7px; color:var(--dim); }
+.kubo-row.on { display:flex; }
+.kdot { width:4px; height:4px; border-radius:50%; background:var(--muted); flex-shrink:0; transition:background .3s; }
+.kdot.on { background:var(--green); }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══════════════════ HEADER ══════════════════ -->
+<div id="hdr">
+  <div class="logo">
+    <span class="logo-hex">⬡</span>
+    <div>
+      <div class="logo-title">CASL × UPDATE4D</div>
+      <div class="logo-sub">content-addressed sonic session · hash → token → sound → z-plane</div>
+    </div>
+  </div>
+
+  <div class="hdr-block">
+    <div class="hdr-lbl">EVENTS</div>
+    <div class="hdr-val" id="hdr-ev" style="color:var(--green)">9</div>
+  </div>
+  <div class="hdr-block">
+    <div class="hdr-lbl">SYNCED</div>
+    <div class="hdr-val" id="hdr-syn" style="color:var(--blue)">9</div>
+  </div>
+  <div class="hdr-block">
+    <div class="hdr-lbl">TOKENS</div>
+    <div class="hdr-val" id="hdr-tok" style="color:var(--amber)">60</div>
+  </div>
+  <div class="hdr-block">
+    <div class="hdr-lbl">STEP</div>
+    <div class="hdr-val" id="hdr-step">121</div>
+  </div>
+  <div class="hdr-block">
+    <div class="hdr-lbl">IPFS</div>
+    <div class="hdr-val" id="hdr-cid" style="color:var(--violet)">—</div>
+  </div>
+
+  <div class="phase-strip">
+    <div class="ph-pill ph-EXPANSION" id="ph-EXPANSION">EXP</div>
+    <div class="ph-pill ph-DEVELOPMENT" id="ph-DEVELOPMENT">DEV</div>
+    <div class="ph-pill ph-PEAK" id="ph-PEAK">PEAK</div>
+    <div class="ph-pill ph-COMPRESSION active" id="ph-COMPRESSION">COMP</div>
+  </div>
+
+  <div class="transport">
+    <div class="eng-state">
+      <div class="eng-dot running" id="eng-dot"></div>
+      <span id="eng-status">PROJECTING</span>
+    </div>
+    <button class="btn active" onclick="togglePlay()" id="btn-play">⏸ PAUSE</button>
+    <button class="btn" onclick="stopPlayback()">■ STOP</button>
+    <button class="btn" onclick="toggleLoop()" id="btn-loop">LOOP: ON</button>
+  </div>
+</div>
+
+<!-- ══════════════════ BODY ══════════════════ -->
+<div id="body">
+
+  <!-- ══ LEFT: Chat Machines ══ -->
+  <div id="machines">
+
+    <!-- Machine A — origin -->
+    <div class="machine" id="ma" style="flex:1.2">
+      <div class="mhdr">
+        <div>
+          <div class="mtitle" id="ma-title" style="color: var(--green);">MACHINE A</div>
+          <div class="msub">origin · chat → hash → sound</div>
+        </div>
+        <div class="badge" id="ma-badge" style="color: var(--green); border-color: rgba(0, 224, 122, 0.133); background: rgba(0, 224, 122, 0.03);">LIVE</div>
+      </div>
+      <div class="chatarea" id="chat-a"><div class="msg user"><div class="mrole user" style="color: var(--green);">user</div><div class="mtext">heelo</div></div><div class="msg assistant"><div class="mrole assistant">assistant</div><div class="mtext">Heello! How can I assist you today?</div></div><div class="msg user"><div class="mrole user" style="color: var(--green);">user</div><div class="mtext">whats the date</div></div><div class="msg assistant"><div class="mrole assistant">assistant</div><div class="mtext">I'm a large language model, I don't have real-time access to the current date. However, my knowledge cutoff is December 2023.
+
+If you'd like to know the current date or a specific date in the past or future, I can try to help you with that!</div></div><div class="msg user"><div class="mrole user" style="color: var(--green);">user</div><div class="mtext">how old are you</div></div><div class="msg assistant"><div class="mrole assistant">assistant</div><div class="mtext">I don't have a physical body or age in the classical sense. I was created through a process called deep learning, which involves training artificial neural networks on large amounts of data.
+
+My knowledge and language abilities were developed over time, but I don't have a specific "birthdate" like a human would. My training data is constantly being updated and expanded to keep my knowledge up-to-date, so in some sense, you could say that I'm always learning and improving!
+
+As for when I was first trained, my knowledge cutoff is currently December 2023, but my training data goes back much further than that.</div></div></div>
+      <div class="ttbar" id="ttbar" style="display: none;">
+        <span>⏪ EVENT <span id="tt-i">6</span>/<span id="tt-n">6</span></span>
+        <button class="ttbtn" onclick="returnToLive()">LIVE</button>
+      </div>
+      <div class="inparea" id="inparea" style="display: flex;">
+        <input class="inp" id="msginp" placeholder="send a message…" onkeydown="onKey(event)" oninput="syncBtn()">
+        <button class="sbtn" id="sbtn" onclick="sendMsg()" disabled="">↵</button>
+      </div>
+    </div>
+
+    <!-- Machine B — replica -->
+    <div class="machine" id="mb" style="flex:1">
+      <div class="mhdr">
+        <div>
+          <div class="mtitle" style="color:var(--blue)">MACHINE B</div>
+          <div class="msub">hashes only · same sound guaranteed</div>
+        </div>
+        <div class="badge" style="color:var(--blue);border-color:#00aaff22;background:#00aaff08">REPLICA</div>
+      </div>
+      <div class="chatarea" id="chat-b"><div class="msg user"><div class="mrole user" style="color: var(--blue);">user</div><div class="mtext">heelo</div></div><div class="msg assistant"><div class="mrole assistant">assistant</div><div class="mtext">Heello! How can I assist you today?</div></div><div class="msg user"><div class="mrole user" style="color: var(--blue);">user</div><div class="mtext">whats the date</div></div><div class="msg assistant"><div class="mrole assistant">assistant</div><div class="mtext">I'm a large language model, I don't have real-time access to the current date. However, my knowledge cutoff is December 2023.
+
+If you'd like to know the current date or a specific date in the past or future, I can try to help you with that!</div></div><div class="msg user"><div class="mrole user" style="color: var(--blue);">user</div><div class="mtext">how old are you</div></div><div class="msg assistant"><div class="mrole assistant">assistant</div><div class="mtext">I don't have a physical body or age in the classical sense. I was created through a process called deep learning, which involves training artificial neural networks on large amounts of data.
+
+My knowledge and language abilities were developed over time, but I don't have a specific "birthdate" like a human would. My training data is constantly being updated and expanded to keep my knowledge up-to-date, so in some sense, you could say that I'm always learning and improving!
+
+As for when I was first trained, my knowledge cutoff is currently December 2023, but my training data goes back much further than that.</div></div></div>
+      <div class="repfoot">
+        <span style="color:var(--border2)">⬡</span>
+        <span class="reptxt" id="reptxt">replayed 9 events · same sound · no hidden state</span>
+      </div>
+      <div id="ipfs-import">
+        <div class="imp-lbl">⬡ RECONSTRUCT FROM IPFS</div>
+        <textarea id="cid-paste" placeholder="paste CID list
+[&quot;bafyreia...&quot;, …]"></textarea>
+        <div class="imp-row">
+          <button class="imp-btn" onclick="fetchFromIPFS()">FETCH &amp; REPLAY</button>
+          <button class="imp-btn" onclick="clearImport()">CLEAR</button>
+        </div>
+        <div id="fetch-st"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ CENTER: Event Log + Controls ══ -->
+  <div id="ctr">
+    <div class="ctrtitle">EVENT LOG → SCORE</div>
+    <div id="evlog">
+      
+    <div class="ev" id="ev-0"><div class="evtype"><span style="color:var(--green)">◆</span><span style="color:var(--green)">USR_MSG</span><span class="syndot synced" id="dot-0">●</span></div><div class="evsha synced" id="sha-0">sha:da7d334e…</div><div class="evtok">⟨1 tokens→sound⟩</div><div class="evcid" id="cid-0"></div></div><div class="ev" id="ev-1"><div class="evtype"><span style="color:var(--amber)">◆</span><span style="color:var(--amber)">AI_REQ</span><span class="syndot synced" id="dot-1">●</span></div><div class="evsha synced" id="sha-1">sha:e186841e…</div><div class="evpar">↑ da7d33</div><div class="evcid" id="cid-1"></div></div><div class="ev" id="ev-2"><div class="evtype"><span style="color:var(--blue)">◆</span><span style="color:var(--blue)">AI_RES</span><span class="syndot synced" id="dot-2">●</span></div><div class="evsha synced" id="sha-2">sha:a2fcd42d…</div><div class="evtok">⟨6 tokens→sound⟩</div><div class="evcid" id="cid-2"></div></div><div class="ev" id="ev-3"><div class="evtype"><span style="color:var(--green)">◆</span><span style="color:var(--green)">USR_MSG</span><span class="syndot synced" id="dot-3">●</span></div><div class="evsha synced" id="sha-3">sha:8a9ff3fb…</div><div class="evtok">⟨3 tokens→sound⟩</div><div class="evcid" id="cid-3"></div></div><div class="ev" id="ev-4"><div class="evtype"><span style="color:var(--amber)">◆</span><span style="color:var(--amber)">AI_REQ</span><span class="syndot synced" id="dot-4">●</span></div><div class="evsha synced" id="sha-4">sha:bdad1ae1…</div><div class="evpar">↑ 8a9ff3</div><div class="evcid" id="cid-4"></div></div><div class="ev" id="ev-5"><div class="evtype"><span style="color:var(--blue)">◆</span><span style="color:var(--blue)">AI_RES</span><span class="syndot synced" id="dot-5">●</span></div><div class="evsha synced" id="sha-5">sha:fe2011e4…</div><div class="evtok">⟨42 tokens→sound⟩</div><div class="evcid" id="cid-5"></div></div><div class="ev" id="ev-6"><div class="evtype"><span style="color:var(--green)">◆</span><span style="color:var(--green)">USR_MSG</span><span class="syndot synced" id="dot-6">●</span></div><div class="evsha synced" id="sha-6">sha:1c047f77…</div><div class="evtok">⟨4 tokens→sound⟩</div><div class="evcid" id="cid-6"></div></div><div class="ev" id="ev-7"><div class="evtype"><span style="color:var(--amber)">◆</span><span style="color:var(--amber)">AI_REQ</span><span class="syndot synced" id="dot-7">●</span></div><div class="evsha synced" id="sha-7">sha:7166f2ff…</div><div class="evpar">↑ 1c047f</div><div class="evcid" id="cid-7"></div></div><div class="ev" id="ev-8"><div class="evtype"><span style="color:var(--blue)">◆</span><span style="color:var(--blue)">AI_RES</span><span class="syndot synced" id="dot-8">●</span></div><div class="evsha synced" id="sha-8">sha:695688fe…</div><div class="evtok">⟨60 tokens→sound⟩</div><div class="evcid" id="cid-8"></div></div></div>
+    <div id="syncind" style="display: none;">→ 695688fe… →</div>
+
+    <!-- Time travel -->
+    <div id="ttctrl">
+      <div id="ttlbl"><span>TIME TRAVEL</span><span id="ttpos" style="color:var(--amber)"></span></div>
+      <input type="range" id="slider" min="0" max="8" value="0" oninput="onSlider(+this.value)">
+    </div>
+
+    <!-- Audio -->
+    <div id="audio-ctrl">
+      <label>MASTER VOL</label>
+      <div class="ctl-row">
+        <input type="range" min="0" max="100" value="70" oninput="setMasterVol(this.value)">
+        <span class="ctl-val" id="vol-val">70</span>
+      </div>
+      <label style="margin-top:4px">REVERB</label>
+      <div class="ctl-row">
+        <input type="range" min="0" max="100" value="20" oninput="setReverb(this.value)">
+        <span class="ctl-val" id="rev-val">20</span>
+      </div>
+    </div>
+
+    <!-- Ollama model -->
+    <div id="modelcfg">
+      <label>OLLAMA MODEL</label>
+      <input id="modelinp" value="llama3.2" placeholder="llama3.2">
+    </div>
+
+    <!-- IPFS -->
+    <div id="ipfs-panel">
+      <div class="iph-row">
+        <span class="iph-lbl">IPFS / HELIA</span>
+        <button id="ipfs-tog" onclick="toggleIPFS()">ENABLE</button>
+      </div>
+      <div id="ipfs-st">off · local sync only</div>
+      <div class="istat-row" id="istat-row">
+        <div class="ist"><div class="iv" id="ist-peers">0</div><div class="il">PEERS</div></div>
+        <div class="ist"><div class="iv" id="ist-pins">0</div><div class="il">PINNED</div></div>
+        <div class="ist"><div class="iv" id="ist-net">local</div><div class="il">NET</div></div>
+      </div>
+      <div class="kubo-row" id="kubo-row">
+        <div class="kdot" id="kdot"></div>
+        <span id="kubo-txt">checking kubo…</span>
+      </div>
+      <div class="iact-row" id="iact-row">
+        <button class="iact" onclick="exportCIDs()">EXPORT CIDs</button>
+        <button class="iact" onclick="copyPeerId()">PEER ID</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT: Projection Engine ══ -->
+  <div id="projection">
+
+    <!-- View switcher -->
+    <div class="view-tabs">
+      <button class="vt" onclick="switchView('field')" id="vt-field">① FIELD</button>
+      <button class="vt" onclick="switchView('sim')" id="vt-sim">② PARTICLES</button>
+      <button class="vt" onclick="switchView('scope')" id="vt-scope">③ SCOPE</button>
+      <button class="vt active" onclick="switchView('zplane')" id="vt-zplane">⑤ Z-PLANE</button>
+      <button class="vt" onclick="switchView('all')" id="vt-all">ALL</button>
+    </div>
+
+    <!-- ① Field -->
+    <div class="view" id="view-field" style="display: none;">
+      <div class="view-lbl">① ENTANGLEMENT FIELD · events→structure</div>
+      <canvas id="field-canvas" width="1022" height="667"></canvas>
+    </div>
+
+    <!-- ② Particle sim -->
+    <div class="view" id="view-sim" style="display: none;">
+      <div class="view-lbl">② PARTICLE SIMULATION · hash→forces</div>
+      <canvas id="sim-canvas" width="1022" height="667"></canvas>
+      <div style="position:absolute;top:6px;right:8px;font-size:10px;color:var(--text)" id="sim-overlay">PARTICLES: 350</div>
+    </div>
+
+    <!-- ③ Scope -->
+    <div class="view" id="view-scope" style="display: none;">
+      <div class="view-lbl">③ WAVEFORM SCOPE · audio domain</div>
+      <canvas id="scope-canvas" width="1022" height="667"></canvas>
+    </div>
+
+    <!-- ⑤ Z-Plane -->
+    <div class="view active" id="view-zplane" style="background: rgb(2, 2, 12); display: flex;">
+      <div class="view-lbl">⑤ Z-PLANE · complex field · phase→hue · event→orbit</div>
+      <canvas id="zplane-canvas" width="470" height="595"></canvas>
+      <div class="zp-overlay">
+        <div class="zp-stat" id="zp-points">POINTS: 167</div>
+        <div class="zp-stat" id="zp-energy">ENERGY: 0.211</div>
+        <div class="zp-stat" id="zp-coherence">HASH: 20C74B</div>
+      </div>
+      <div class="zp-btns">
+        <button class="zp-btn on" id="zpb-trails" onclick="zpToggle('trails')">TRAILS</button>
+        <button class="zp-btn" id="zpb-grid" onclick="zpToggle('grid')">GRID</button>
+        <button class="zp-btn" id="zpb-field" onclick="zpToggle('field')">FIELD</button>
+        <button class="zp-btn" id="zpb-interfere" onclick="zpToggle('interfere')">INTERF</button>
+      </div>
+    </div>
+
+    <!-- ALL -->
+    <div class="view" id="view-all" style="display:none;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;background:var(--border)">
+      <div style="position:relative;background:var(--bg)"><canvas id="field-mini"></canvas><div style="position:absolute;top:3px;left:5px;font-size:9px;color:var(--amber);opacity:.5">FIELD</div></div>
+      <div style="position:relative;background:var(--bg)"><canvas id="sim-mini"></canvas><div style="position:absolute;top:3px;left:5px;font-size:9px;color:var(--amber);opacity:.5">PARTICLES</div></div>
+      <div style="position:relative;background:var(--bg)"><canvas id="scope-mini"></canvas><div style="position:absolute;top:3px;left:5px;font-size:9px;color:var(--amber);opacity:.5">SCOPE</div></div>
+      <div style="position:relative;background:#02020c"><canvas id="zplane-mini"></canvas><div style="position:absolute;top:3px;left:5px;font-size:9px;color:var(--amber);opacity:.5">Z-PLANE</div></div>
+    </div>
+
+    <!-- Token trace strip (event → sound mapping) -->
+    <div class="ev-token-trace" id="ev-tok-trace"><span style="color:var(--dim);font-size:8px;letter-spacing:1px;white-space:nowrap">TOKENS</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">heelo</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">Heello</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">How</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">can</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">assist</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">you</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">today</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">whats</span><span class="ev-tok-chip" style="color:var(--amber);border-color:var(--amber)28">the</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">date</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">large</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">language</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">model</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">don</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">have</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">real</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">time</span><span class="ev-tok-chip" style="color:var(--mel);border-color:var(--mel)28">access</span></div>
+
+    <!-- Position bar -->
+    <div class="pos-bar">
+      <div class="pos-item"><span class="pos-label">STEP</span><span class="pos-val" id="pos-step">121</span></div>
+      <div class="pos-item"><span class="pos-label">BAR</span><span class="pos-val" id="pos-bar">16/16</span></div>
+      <div class="pos-item"><span class="pos-label">BEAT</span><span class="pos-val" id="pos-beat">1</span></div>
+      <div class="pos-item"><span class="pos-label">PHASE</span><span class="pos-val" id="pos-phase" style="color: rgb(204, 102, 255);">COMP</span></div>
+      <div class="pos-item" style="margin-left:auto"><span class="pos-label">EVENTS→SOUND</span><span class="pos-val" id="pos-evs" style="color:var(--green)">2</span></div>
+    </div>
+
+    <!-- Collapse strip: shows which chat event drove the current token set -->
+    <div class="collapse-strip">
+      <span class="cs-label">ACTIVE EVENT</span>
+      <span class="cs-val" id="cs-val">I don't have a physical body or age in t…</span>
+      <span class="cs-hash" id="cs-hash">sha:695688fe</span>
+    </div>
+
+  </div>
+
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  CASL STATE — event log is the source of truth
+// ═══════════════════════════════════════════════════════════════════════════
+let log      = [];    // [{hash, parentHash, event, tokens, ipfsCid}]
+let cache    = new Map();
+let synced   = 0;
+let ttIdx    = null;
+let busy     = false;
+let prevHash = null;
+let ipfsOn=false, helia=null, heliaJson=null, kuboOnline=false;
+let peerTimer=null, pinCount=0, importedEvs=null;
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SHA-256 (Web Crypto — same as CASL)
+// ═══════════════════════════════════════════════════════════════════════════
+async function sha256(obj) {
+  const buf = new TextEncoder().encode(JSON.stringify(obj));
+  const h   = await crypto.subtle.digest('SHA-256', buf);
+  return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CASL REDUCER — pure, no side effects
+// ═══════════════════════════════════════════════════════════════════════════
+const CHAT_INIT = { messages:[], pending:false };
+function chatReduce(s, e) {
+  switch (e.type) {
+    case 'USER_MESSAGE': return {...s, messages:[...s.messages, {role:'user', text:e.text}]};
+    case 'AI_REQUEST':   return {...s, pending:true};
+    case 'AI_RESPONSE':  return {...s, pending:false, messages:[...s.messages, {role:'assistant', text:e.response}]};
+    default: return s;
+  }
+}
+function replay(events) { return events.reduce(chatReduce, CHAT_INIT); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TOKEN SYSTEM (from UPDATE4D) — PURE: text → tokens
+// ═══════════════════════════════════════════════════════════════════════════
+const JAVA_KW = new Set(['abstract','assert','boolean','break','byte','case','catch','char','class',
+  'const','continue','default','do','double','else','enum','extends','final','finally','float',
+  'for','goto','if','implements','import','instanceof','int','interface','long','native','new',
+  'package','private','protected','public','return','short','static','super','switch',
+  'synchronized','this','throw','throws','transient','try','var','void','volatile','while',
+  'function','async','await','typeof','of','in','from','export','Optional','CompletableFuture',
+  'let','const','the','is','a','to','and','in','of','for','on','with','at','from','by']);
+
+const OPS = new Set(['+','-','*','/','=','==','===','!=','!==','<','>','<=','>=','&&','||','!',
+  '&','|','^','~','%','++','--','=>','?',':','>>','<<','>>>','**','??','->','::']);
+
+function classifyToken(w) {
+  if (JAVA_KW.has(w))                return 'keyword';
+  if (OPS.has(w))                    return 'operator';
+  if (/^\d+(\.\d+)?$/.test(w))       return 'number';
+  if (/^[a-zA-Z_$][\w$]*$/.test(w)) return 'identifier';
+  return 'unknown';
+}
+
+function hashStr(s) {
+  let h = 5381;
+  for (let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))&0x7fffffff;
+  return Math.abs(h);
+}
+
+function tokenizeText(text) {
+  return (text.match(/[a-zA-Z_$][\w$]*|===|!==|==|!=|<=|>=|=>|&&|\|\||[+\-*\/=<>!&|^~%?:,;.]+|\d+[\d.]*/g)||[])
+    .filter(w=>w.trim()&&w.length>1)
+    .slice(0,60)
+    .map(w=>({symbol:w, id:hashStr(w)%100, type:classifyToken(w)}));
+}
+
+// Tokens derived from the current event log state (pure function of log)
+function deriveTokensFromLog(events) {
+  // Union of all text content in the log, deduplicated
+  const allText = events
+    .filter(e=>e.type==='USER_MESSAGE'||e.type==='AI_RESPONSE')
+    .map(e=>e.text||e.response||'')
+    .join(' ');
+  return tokenizeText(allText);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  UPDATE4D STATE + REDUCER
+// ═══════════════════════════════════════════════════════════════════════════
+const BARS=16, STEPS_PER_BAR=8, TOTAL_STEPS=128;
+const SCALES = {
+  pentatonic:[0,2,4,7,9], major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10],
+  dorian:[0,2,3,5,7,9,10], phrygian:[0,1,3,5,7,8,10], chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
+};
+
+const U4D_INIT = {
+  tokens:[], scale:'pentatonic', root:0, bpm:120, looping:true,
+  layers:{
+    pulse:    {enabled:true, volume:.80, waveform:'sine',     rhythmOffset:0},
+    harmonic: {enabled:true, volume:.60, waveform:'sawtooth', rhythmOffset:7},
+    melodic:  {enabled:true, volume:.70, waveform:'triangle', rhythmOffset:13},
+    texture:  {enabled:true, volume:.40, waveform:'sine',     rhythmOffset:23},
+  }
+};
+
+let u4dState = JSON.parse(JSON.stringify(U4D_INIT));
+
+function u4dReduce(s, action) {
+  switch(action.type) {
+    case 'SET_TOKENS':  return {...s, tokens:action.tokens};
+    case 'SET_BPM':     return {...s, bpm:Math.max(40,Math.min(280,Math.round(action.bpm)))};
+    case 'TOGGLE_LOOP': return {...s, looping:!s.looping};
+    default: return s;
+  }
+}
+
+function u4dDispatch(action) {
+  u4dState = u4dReduce(u4dState, action);
+  afterU4D(action);
+}
+
+function afterU4D(action) {
+  if (action.type==='SET_TOKENS') {
+    document.getElementById('hdr-tok').textContent = u4dState.tokens.length;
+    renderTokenTrace();
+    updateDisplay(currentStep());
+  }
+  if (action.type==='TOGGLE_LOOP') {
+    const btn = document.getElementById('btn-loop');
+    btn.textContent = `LOOP: ${u4dState.looping?'ON':'OFF'}`;
+    btn.classList.toggle('active', u4dState.looping);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  THE CORE BRIDGE:  CASL event log → UPDATE4D token state
+//  Pure function: eventLog → tokens
+// ═══════════════════════════════════════════════════════════════════════════
+function syncTokensFromLog() {
+  const activeLog = ttIdx!==null ? log.slice(0,ttIdx+1) : log;
+  const events = activeLog.map(e=>e.event);
+  const tokens = deriveTokensFromLog(events);
+  u4dDispatch({type:'SET_TOKENS', tokens});
+
+  // Show active event info in collapse strip
+  if (log.length > 0) {
+    const latest = activeLog[activeLog.length-1];
+    const ev = latest?.event;
+    const desc = ev?.type==='USER_MESSAGE' ? ev.text?.slice(0,40)+'…'
+               : ev?.type==='AI_RESPONSE'  ? ev.response?.slice(0,40)+'…'
+               : ev?.type||'';
+    document.getElementById('cs-val').textContent  = desc||'—';
+    document.getElementById('cs-hash').textContent = latest ? `sha:${latest.hash.slice(0,8)}` : 'sha:—';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  RHYTHM + HASH + PROJECTION (from UPDATE4D)
+// ═══════════════════════════════════════════════════════════════════════════
+function hashTokens(tokens) {
+  if (!tokens.length) return 42;
+  let h=0;
+  for (const t of tokens) h=((h*31)+hashStr(t.symbol))&0x7fffffff;
+  return h;
+}
+
+function makeEuclidean(beats,steps){
+  const pat=[]; let bucket=0;
+  for(let i=0;i<steps;i++){bucket+=beats;if(bucket>=steps){bucket-=steps;pat.push(1);}else pat.push(0);}
+  return t=>pat[((t%steps)+steps)%steps]===1;
+}
+const RHYTHM_BANK=[[1,4],[2,4],[3,4],[4,4],[1,8],[2,8],[3,8],[4,8],[5,8],[6,8],[7,8],[8,8],
+  [1,16],[2,16],[3,16],[4,16],[5,16],[6,16],[7,16],[8,16],[9,16],[10,16],[11,16],[12,16],
+  [13,16],[14,16],[15,16],[16,16],[3,7],[4,7],[5,7],[2,5],[3,5],[4,9],[5,9],[7,9]
+].map(([b,s])=>makeEuclidean(b,s));
+
+const SEEDS={pulse:0,harmonic:7,melodic:13,texture:23};
+function getRhythm(tokens,layer,offset){
+  return RHYTHM_BANK[(hashTokens(tokens)+SEEDS[layer]+offset)%RHYTHM_BANK.length];
+}
+
+function getPhase(t){
+  const bar=Math.floor(t/STEPS_PER_BAR);
+  if(bar<4)return'EXPANSION';if(bar<8)return'DEVELOPMENT';if(bar<12)return'PEAK';return'COMPRESSION';
+}
+function stepDuration(bpm){return 60/(bpm*2);}
+function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
+
+function tokenToFreq(token,octaveBase,s){
+  const scale=SCALES[s.scale]||SCALES.pentatonic;
+  const idx=token.id%scale.length;
+  const semi=(scale[idx]+s.root)%12;
+  const oct=Math.max(1,Math.min(7,octaveBase+Math.floor(token.id/scale.length)%2-1));
+  return midiToFreq(Math.max(28,Math.min(100,(oct+1)*12+semi)));
+}
+function tokenArticulation(t){
+  switch(t.type){
+    case'keyword':    return{attack:.003,decay:.08,sustain:.55,release:.15,filterType:'lowpass',filterFreq:1800,filterQ:3};
+    case'operator':   return{attack:.001,decay:.015,sustain:.15,release:.04,filterType:'bandpass',filterFreq:2800,filterQ:7};
+    case'identifier': return{attack:.008,decay:.07,sustain:.6,release:.18,filterType:'lowpass',filterFreq:3200,filterQ:1.5};
+    case'number':     return{attack:.015,decay:.12,sustain:.5,release:.35,filterType:'lowpass',filterFreq:700,filterQ:2};
+    default:          return{attack:.02,decay:.1,sustain:.4,release:.3,filterType:'lowpass',filterFreq:900,filterQ:.8};
+  }
+}
+function tokenDurMult(t){const l=t.symbol.length;if(l<=1)return.4;if(l<=3)return.7;if(l<=6)return 1;if(l<=10)return 1.35;return 1.7;}
+
+const phOff={EXPANSION:0,DEVELOPMENT:5,PEAK:7,COMPRESSION:-2};
+const phVel={EXPANSION:.6,DEVELOPMENT:.72,PEAK:.95,COMPRESSION:.38};
+const phFilt={EXPANSION:2,DEVELOPMENT:3.5,PEAK:6,COMPRESSION:.5};
+const phDet={EXPANSION:6,DEVELOPMENT:10,PEAK:16,COMPRESSION:3};
+
+function P_pulse(s,t){
+  const L=s.layers.pulse;if(!L.enabled)return null;
+  const ph=getPhase(t);
+  const rh=getRhythm(s.tokens,'pulse',L.rhythmOffset);
+  if(!rh(t))return null;
+  const h=hashTokens(s.tokens);
+  return{layer:'pulse',freq:48+(h%28),velocity:ph==='PEAK'?.98:ph==='COMPRESSION'?.45:.78,
+    duration:ph==='COMPRESSION'?.04:.08,attack:.002,decay:.04,sustain:.1,release:.06,
+    waveform:L.waveform,volume:L.volume,filterType:'lowpass',filterFreq:ph==='PEAK'?320:200,filterQ:2,filterSweep:(phFilt[ph]||1)*.3};
+}
+function P_harmonic(s,t){
+  const L=s.layers.harmonic;if(!L.enabled||!s.tokens.length)return null;
+  if(!getRhythm(s.tokens,'harmonic',L.rhythmOffset)(t))return null;
+  const ph=getPhase(t); const h=hashTokens(s.tokens);
+  const tok=s.tokens[(t+h)%s.tokens.length];
+  const art=tokenArticulation(tok); const dm=tokenDurMult(tok);
+  return{layer:'harmonic',freq:tokenToFreq(tok,2,s)*Math.pow(2,(phOff[ph]||0)/12),
+    velocity:(phVel[ph]||.6)*.7,duration:.35*dm,detune:phDet[ph]||6,waveform:L.waveform,
+    volume:L.volume,filterSweep:phFilt[ph]||1,...art,_token:tok.symbol,_type:tok.type};
+}
+function P_melodic(s,t){
+  const L=s.layers.melodic;if(!L.enabled||!s.tokens.length)return null;
+  if(!getRhythm(s.tokens,'melodic',L.rhythmOffset)(t))return null;
+  const ph=getPhase(t); const h=hashTokens(s.tokens);
+  const tok=s.tokens[(t*3+h)%s.tokens.length];
+  const art=tokenArticulation(tok); const dm=tokenDurMult(tok);
+  const dur=tok.type==='operator'?.06:tok.type==='keyword'?.28*dm:tok.type==='number'?.15*dm:.18*dm;
+  return{layer:'melodic',freq:tokenToFreq(tok,4,s)*Math.pow(2,(phOff[ph]||0)/12),
+    velocity:phVel[ph]||.6,duration:dur,waveform:L.waveform,volume:L.volume,
+    filterSweep:(phFilt[ph]||1)*1.5,...art,_token:tok.symbol,_type:tok.type};
+}
+function P_texture(s,t){
+  const L=s.layers.texture;if(!L.enabled||!s.tokens.length)return null;
+  if(!getRhythm(s.tokens,'texture',L.rhythmOffset)(t))return null;
+  const ph=getPhase(t); const h=hashTokens(s.tokens);
+  const tok=s.tokens[(t*7+h)%s.tokens.length];
+  const art=tokenArticulation(tok); const dm=tokenDurMult(tok);
+  const fmult={EXPANSION:1.5,DEVELOPMENT:1.25,PEAK:2,COMPRESSION:1}[ph]||1.5;
+  const vel={EXPANSION:.22,DEVELOPMENT:.3,PEAK:.18,COMPRESSION:.12}[ph]||.22;
+  return{layer:'texture',freq:tokenToFreq(tok,5,s)*fmult*Math.pow(2,(phOff[ph]||0)/12),
+    velocity:vel,duration:.55*dm,detune:(phDet[ph]||6)*1.5,waveform:L.waveform,volume:L.volume,
+    filterType:'highpass',filterFreq:ph==='COMPRESSION'?600:200,filterSweep:(phFilt[ph]||1)*.8,
+    ...art,_token:tok.symbol,_type:tok.type};
+}
+
+function project(s,t){
+  const evs=[];
+  [P_pulse,P_harmonic,P_melodic,P_texture].forEach(P=>{const e=P(s,t);if(e)evs.push(e);});
+  return evs;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  AUDIO ENGINE
+// ═══════════════════════════════════════════════════════════════════════════
+let audioCtx=null, masterGain=null, analyser=null, dryGain=null, wetGain=null;
+
+function initAudio(){
+  if(audioCtx)return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  analyser=audioCtx.createAnalyser(); analyser.fftSize=1024;
+  masterGain=audioCtx.createGain(); masterGain.gain.value=.70;
+  const delay=audioCtx.createDelay(.5); delay.delayTime.value=.22;
+  const fb=audioCtx.createGain(); fb.gain.value=.25;
+  dryGain=audioCtx.createGain(); dryGain.gain.value=.8;
+  wetGain=audioCtx.createGain(); wetGain.gain.value=.2;
+  masterGain.connect(dryGain); dryGain.connect(analyser);
+  masterGain.connect(delay); delay.connect(fb); fb.connect(delay);
+  fb.connect(wetGain); wetGain.connect(analyser);
+  analyser.connect(audioCtx.destination);
+}
+
+function interpretAudio(ev,time){
+  if(!audioCtx||!masterGain)return;
+  const vol=Math.min(1,ev.velocity*ev.volume);
+  const dur=ev.duration; const atk=ev.attack||.006; const rel=ev.release||dur*.5;
+  const filt=audioCtx.createBiquadFilter();
+  filt.type=ev.filterType||'lowpass';
+  filt.frequency.setValueAtTime(ev.filterFreq||8000,time);
+  if(ev.filterSweep)filt.frequency.exponentialRampToValueAtTime(Math.max(20,ev.filterFreq*ev.filterSweep),time+dur*.6);
+  filt.Q.value=ev.filterQ||1;
+  const g=audioCtx.createGain();
+  g.gain.setValueAtTime(.0001,time);
+  g.gain.linearRampToValueAtTime(vol,time+atk);
+  g.gain.setValueAtTime(vol*(ev.sustain||.7),time+atk+(ev.decay||.04));
+  g.gain.exponentialRampToValueAtTime(.0001,time+dur+rel*.5);
+  filt.connect(g); g.connect(masterGain);
+  const mkO=(type,freq,det)=>{
+    const o=audioCtx.createOscillator(); o.type=type;
+    o.frequency.setValueAtTime(freq,time); o.detune.value=det||0;
+    o.connect(filt); o.start(time); o.stop(time+dur+rel+.1); return o;
+  };
+  if(ev.layer==='pulse'){
+    const o1=mkO(ev.waveform,ev.freq);
+    o1.frequency.setValueAtTime(ev.freq*3.5,time);
+    o1.frequency.exponentialRampToValueAtTime(ev.freq,time+.07);
+    const o2=audioCtx.createOscillator(); o2.type='sine'; o2.frequency.value=ev.freq*.5;
+    const sg=audioCtx.createGain(); sg.gain.setValueAtTime(vol*.5,time); sg.gain.exponentialRampToValueAtTime(.0001,time+dur*.8);
+    o2.connect(sg); sg.connect(masterGain); o2.start(time); o2.stop(time+dur+.1);
+  } else if(ev.layer==='harmonic'){
+    mkO(ev.waveform,ev.freq,-(ev.detune||0)); mkO(ev.waveform,ev.freq,ev.detune||0);
+  } else if(ev.layer==='melodic'){
+    mkO(ev.waveform,ev.freq);
+    const og=audioCtx.createGain(); og.gain.value=.18;
+    const ov=audioCtx.createOscillator(); ov.type='sine'; ov.frequency.value=ev.freq*2;
+    ov.connect(og); og.connect(filt); ov.start(time); ov.stop(time+dur*.5);
+  } else {
+    mkO(ev.waveform,ev.freq); mkO(ev.waveform,ev.freq*1.003,12);
+  }
+}
+
+function setMasterVol(v){if(masterGain)masterGain.gain.value=v/100;document.getElementById('vol-val').textContent=v;}
+function setReverb(v){if(wetGain)wetGain.gain.value=(v/100)*.6;if(dryGain)dryGain.gain.value=1-(v/100)*.35;document.getElementById('rev-val').textContent=v;}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SCHEDULER
+// ═══════════════════════════════════════════════════════════════════════════
+let isPlaying=false, schedulerStep=0, nextStepTime=0, playStartTime=0, schedTimer=null;
+const LOOK_AHEAD=.12, SCHED_INTERVAL=30;
+
+function schedule(){
+  if(!audioCtx)return;
+  const snap=u4dState;
+  while(nextStepTime<audioCtx.currentTime+LOOK_AHEAD){
+    const t=schedulerStep%TOTAL_STEPS;
+    const events=project(snap,t);
+    events.forEach(ev=>interpretAudio(ev,nextStepTime));
+    nextStepTime+=stepDuration(snap.bpm);
+    schedulerStep++;
+    if(!snap.looping&&schedulerStep>=TOTAL_STEPS){stopPlayback();return;}
+  }
+}
+
+function currentStep(){
+  if(!isPlaying||!audioCtx)return 0;
+  const el=audioCtx.currentTime-playStartTime;
+  if(el<0)return 0;
+  return Math.floor(el/stepDuration(u4dState.bpm))%TOTAL_STEPS;
+}
+
+function startPlayback(){
+  initAudio();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  schedulerStep=0; nextStepTime=audioCtx.currentTime+.08; playStartTime=nextStepTime;
+  isPlaying=true; schedTimer=setInterval(schedule,SCHED_INTERVAL);
+  document.getElementById('btn-play').textContent='⏸ PAUSE';
+  document.getElementById('btn-play').classList.add('active');
+  animLoop();
+}
+function pausePlayback(){
+  clearInterval(schedTimer); isPlaying=false;
+  document.getElementById('btn-play').textContent='▶ PLAY';
+  document.getElementById('btn-play').classList.remove('active');
+}
+function stopPlayback(){
+  clearInterval(schedTimer); isPlaying=false; schedulerStep=0;
+  document.getElementById('btn-play').textContent='▶ PLAY';
+  document.getElementById('btn-play').classList.remove('active');
+  updateDisplay(0);
+}
+function togglePlay(){if(!isPlaying)startPlayback();else pausePlayback();}
+function toggleLoop(){u4dDispatch({type:'TOGGLE_LOOP'});}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DISPLAY UPDATE
+// ═══════════════════════════════════════════════════════════════════════════
+const PHASE_COLORS={EXPANSION:'#00ff77',DEVELOPMENT:'#00c8ff',PEAK:'#f5a623',COMPRESSION:'#cc66ff'};
+const LAYER_COLORS={pulse:'#ff4422',harmonic:'#00c8ff',melodic:'#00ff77',texture:'#cc66ff'};
+
+function setText(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function updateDisplay(t){
+  const bar=Math.floor(t/STEPS_PER_BAR);
+  const beat=Math.floor((t%STEPS_PER_BAR)/2)+1;
+  const evs=project(u4dState,t);
+  const ph=getPhase(t);
+  setText('pos-step',String(t).padStart(3,'0'));
+  setText('pos-bar',`${String(bar+1).padStart(2,'0')}/16`);
+  setText('pos-beat',beat);
+  setText('pos-evs',evs.length);
+  setText('pos-phase',ph.slice(0,4));
+  document.getElementById('pos-phase').style.color=PHASE_COLORS[ph];
+  setText('hdr-step',String(t).padStart(3,'0'));
+  ['EXPANSION','DEVELOPMENT','PEAK','COMPRESSION'].forEach(p=>{
+    const el=document.getElementById(`ph-${p}`);
+    if(el)el.classList.toggle('active',p===ph);
+  });
+}
+
+function renderTokenTrace(){
+  const el=document.getElementById('ev-tok-trace');
+  const toks=u4dState.tokens.slice(0,18);
+  if(!toks.length){el.innerHTML='<span style="color:var(--dim);font-size:8px;letter-spacing:1px">LIVE TOKENS</span>';return;}
+  const colors={keyword:'var(--amber)',operator:'var(--pulse)',identifier:'var(--mel)',number:'var(--harm)',unknown:'var(--dim)'};
+  el.innerHTML='<span style="color:var(--dim);font-size:8px;letter-spacing:1px;white-space:nowrap">TOKENS</span>'
+    +toks.map(t=>`<span class="ev-tok-chip" style="color:${colors[t.type]||'var(--dim)'};border-color:${colors[t.type]||'var(--border2)'}28">${t.symbol}</span>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PARTICLE SIMULATION
+// ═══════════════════════════════════════════════════════════════════════════
+const MAX_PARTICLES=350;
+let particles=[];
+
+function mkParticle(x,y,vx,vy,color,size){return{x,y,vx,vy,color,size,trail:[],life:1};}
+function initParticles(n,W,H){
+  particles=[];
+  for(let i=0;i<n;i++) particles.push(mkParticle(Math.random()*W,Math.random()*H,(Math.random()-.5)*.6,(Math.random()-.5)*.6,`hsl(${Math.random()*360},70%,60%)`,1.5+Math.random()*2.5));
+}
+
+function spawnParticlesForEvent(ev,W,H){
+  const cx=W/2, cy=H/2;
+  const layer_hue={pulse:0,harmonic:200,melodic:130,texture:280};
+  const h=layer_hue[ev.layer]||180;
+  const count=ev.layer==='pulse'?4:ev.layer==='harmonic'?3:2;
+  const speed=ev.velocity*(ev.layer==='pulse'?3:2);
+  for(let i=0;i<count;i++){
+    if(particles.length>=MAX_PARTICLES)particles.shift();
+    const angle=Math.random()*Math.PI*2;
+    particles.push(mkParticle(cx+(Math.random()-.5)*60,cy+(Math.random()-.5)*60,
+      Math.cos(angle)*speed,Math.sin(angle)*speed,
+      `hsl(${h+Math.random()*40-20},80%,65%)`,2+ev.velocity*3));
+  }
+}
+
+function updateParticles(W,H){
+  const hash=hashTokens(u4dState.tokens);
+  const cx=W/2,cy=H/2;
+  const t=currentStep();
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.trail.push({x:p.x,y:p.y});
+    if(p.trail.length>8)p.trail.shift();
+    // Orbiting force based on token hash
+    const dx=cx-p.x, dy=cy-p.y;
+    const dist=Math.sqrt(dx*dx+dy*dy)||1;
+    const force=(hash%50+30)/(dist*60);
+    p.vx+=dx*force*.05+(Math.sin(t*.08+i)*.04);
+    p.vy+=dy*force*.05+(Math.cos(t*.08+i)*.04);
+    p.vx*=.985; p.vy*=.985;
+    p.x+=p.vx; p.y+=p.vy;
+    p.life-=.003;
+    if(p.life<=0||p.x<-20||p.x>W+20||p.y<-20||p.y>H+20){
+      particles[i]=mkParticle(Math.random()*W,Math.random()*H,(Math.random()-.5)*.5,(Math.random()-.5)*.5,`hsl(${Math.random()*360},70%,60%)`,1.5+Math.random()*2);
+      particles[i].life=1;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Z-PLANE
+// ═══════════════════════════════════════════════════════════════════════════
+let zpPoints=[];
+const ZP_OPT={trails:true,grid:false,field:false,interfere:false};
+const ZP_COLORS={pulse:'#ff4422',harmonic:'#00c8ff',melodic:'#00ff77',texture:'#cc66ff'};
+
+function zpToggle(key){
+  ZP_OPT[key]=!ZP_OPT[key];
+  const btn=document.getElementById(`zpb-${key}`);
+  if(btn)btn.classList.toggle('on',ZP_OPT[key]);
+}
+
+function addZPPoint(ev,t){
+  const hash=hashTokens(u4dState.tokens);
+  const freq=ev.freq||200;
+  const phase=(freq/1000)*Math.PI*2*t + (hash%100)/100*Math.PI*2;
+  const mag=Math.min(1,ev.velocity*(ev.volume||1));
+  zpPoints.push({re:mag*Math.cos(phase),im:mag*Math.sin(phase),
+    color:ZP_COLORS[ev.layer]||'#ffffff',layer:ev.layer,t,life:60+mag*40,mag});
+  if(zpPoints.length>200)zpPoints.shift();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CANVAS RENDERERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function drawField(ctx,W,H,mini=false){
+  ctx.fillStyle='rgba(4,4,12,.18)'; ctx.fillRect(0,0,W,H);
+  const toks=u4dState.tokens;
+  if(!toks.length){
+    ctx.fillStyle='rgba(20,24,42,.6)'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#1e2440'; ctx.font=`${mini?9:11}px JetBrains Mono`;
+    ctx.textAlign='center'; ctx.fillText('no tokens — send a message',W/2,H/2); return;
+  }
+  const t=currentStep(); const ph=getPhase(t);
+  const hashV=hashTokens(toks); const cx=W/2,cy=H/2;
+  const r=Math.min(W,H)*0.36;
+  toks.forEach((tok,i)=>{
+    const angle=(i/toks.length)*Math.PI*2+(t*.01);
+    const tokR=r*(0.4+0.6*(tok.id/100));
+    const x=cx+Math.cos(angle)*tokR;
+    const y=cy+Math.sin(angle)*tokR;
+    const hue={keyword:50,operator:0,identifier:130,number:200,unknown:280}[tok.type]||180;
+    const pulse=0.6+0.4*Math.sin(t*.15+i);
+    ctx.beginPath();
+    ctx.arc(x,y,mini?1.5:2.5+pulse,0,Math.PI*2);
+    ctx.fillStyle=`hsla(${hue},80%,60%,${0.4+pulse*.4})`;
+    ctx.fill();
+    if(!mini&&tok.type!=='unknown'){
+      // line to center
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x,y);
+      ctx.strokeStyle=`hsla(${hue},60%,40%,${pulse*.15})`;
+      ctx.lineWidth=.5; ctx.stroke();
+    }
+  });
+  // center orb
+  const grad=ctx.createRadialGradient(cx,cy,0,cx,cy,mini?20:35);
+  const pcol=PHASE_COLORS[ph];
+  grad.addColorStop(0,pcol+'60'); grad.addColorStop(1,'transparent');
+  ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(cx,cy,mini?20:35,0,Math.PI*2); ctx.fill();
+}
+
+function drawSim(ctx,W,H,mini=false){
+  ctx.fillStyle='rgba(4,4,12,.22)'; ctx.fillRect(0,0,W,H);
+  particles.forEach(p=>{
+    if(p.trail.length>1&&!mini){
+      ctx.beginPath(); ctx.moveTo(p.trail[0].x,p.trail[0].y);
+      for(let i=1;i<p.trail.length;i++) ctx.lineTo(p.trail[i].x,p.trail[i].y);
+      ctx.strokeStyle=p.color+'40'; ctx.lineWidth=.8; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(p.x,p.y,mini?1:p.size*(0.5+p.life*.5),0,Math.PI*2);
+    ctx.fillStyle=p.color+(mini?'aa':'cc'); ctx.fill();
+  });
+  if(!mini) setText('sim-overlay',`PARTICLES: ${particles.length}`);
+}
+
+function drawScope(ctx,W,H,mini=false){
+  ctx.fillStyle='rgba(4,4,12,.18)'; ctx.fillRect(0,0,W,H);
+  if(!analyser){ctx.fillStyle='#1e2440';ctx.font='10px JetBrains Mono';ctx.textAlign='center';ctx.fillText('no audio',W/2,H/2);return;}
+  const buf=new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(buf);
+  const sliceW=W/buf.length;
+  ctx.lineWidth=mini?1:1.5; ctx.strokeStyle=mini?'#00e07a66':'#00e07a88';
+  ctx.beginPath();
+  buf.forEach((v,i)=>{
+    const x=i*sliceW; const y=(v/128-1)*(H/2)+H/2;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+}
+
+function drawZPlane(ctx,W,H,mini=false){
+  if(!mini){
+    ctx.fillStyle='rgba(2,2,12,.28)'; ctx.fillRect(0,0,W,H);
+  } else {
+    ctx.fillStyle='#02020c'; ctx.fillRect(0,0,W,H);
+  }
+  const cx=W/2, cy=H/2;
+  const scale=Math.min(W,H)*0.42;
+
+  if(ZP_OPT.grid&&!mini){
+    ctx.strokeStyle='#14182a'; ctx.lineWidth=.5;
+    for(let x=0;x<=W;x+=W/8){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<=H;y+=H/8){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    ctx.strokeStyle='#1e2440'; ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();
+    ctx.beginPath();ctx.arc(cx,cy,scale*.5,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(cx,cy,scale,0,Math.PI*2);ctx.stroke();
+  }
+
+  if(ZP_OPT.interfere&&!mini){
+    const hash=hashTokens(u4dState.tokens);
+    for(let x=0;x<W;x+=4){for(let y=0;y<H;y+=4){
+      const re=(x-cx)/scale, im=(y-cy)/scale;
+      const mag=Math.sqrt(re*re+im*im);
+      const phase=Math.atan2(im,re);
+      const wave=Math.sin(mag*8-currentStep()*.1+hash*.01)*0.5+0.5;
+      ctx.fillStyle=`rgba(80,50,120,${wave*.07})`;
+      ctx.fillRect(x,y,4,4);
+    }}
+  }
+
+  // Draw points
+  zpPoints.forEach(p=>{
+    p.life--;
+    if(p.life<=0)return;
+    const px=cx+p.re*scale, py=cy+p.im*scale;
+    const alpha=Math.min(1,p.life/40);
+    if(ZP_OPT.trails&&!mini&&p.re!==undefined){
+      ctx.beginPath(); ctx.arc(px,py,mini?1:2.5+p.mag*3,0,Math.PI*2);
+      ctx.fillStyle=p.color+Math.floor(alpha*200).toString(16).padStart(2,'0');
+      ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(px,py,mini?1:1.5+p.mag*2,0,Math.PI*2);
+      ctx.fillStyle=p.color+Math.floor(alpha*220).toString(16).padStart(2,'0');
+      ctx.fill();
+    }
+  });
+
+  // Active orbit ring
+  const t=currentStep();
+  const hash=hashTokens(u4dState.tokens);
+  const orbitR=scale*(.4+0.3*Math.sin(t*.05));
+  const angle=t*.08+(hash%100)/100*Math.PI*2;
+  const ox=cx+Math.cos(angle)*orbitR, oy=cy+Math.sin(angle)*orbitR;
+  ctx.beginPath(); ctx.arc(ox,oy,mini?1.5:4,0,Math.PI*2);
+  ctx.fillStyle=PHASE_COLORS[getPhase(t)]+'cc'; ctx.fill();
+
+  if(!mini){
+    const energy=zpPoints.reduce((a,p)=>a+p.mag,0)/Math.max(1,zpPoints.length);
+    setText('zp-points',`POINTS: ${zpPoints.filter(p=>p.life>0).length}`);
+    setText('zp-energy', `ENERGY: ${energy.toFixed(3)}`);
+    const h=hashTokens(u4dState.tokens);
+    setText('zp-coherence',`HASH: ${h.toString(16).slice(0,6).toUpperCase()}`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════════════════════
+let animId=null;
+let currentView='field';
+
+function switchView(id){
+  currentView=id;
+  document.querySelectorAll('.view').forEach(el=>{
+    el.classList.remove('active');
+    el.style.display='none';
+  });
+  document.querySelectorAll('.vt').forEach(el=>el.classList.remove('active'));
+  const view=document.getElementById(`view-${id}`);
+  if(view){view.classList.add('active');view.style.display=id==='all'?'grid':'flex';}
+  const tab=document.getElementById(`vt-${id}`);
+  if(tab)tab.classList.add('active');
+}
+
+function resizeCanvas(canvas){
+  const r=canvas.parentElement.getBoundingClientRect();
+  canvas.width=Math.floor(r.width); canvas.height=Math.floor(r.height);
+}
+
+function animLoop(){
+  if(!isPlaying){animId=null;return;}
+  animId=requestAnimationFrame(animLoop);
+  const t=currentStep();
+  updateDisplay(t);
+
+  // Spawn particles for current projection events
+  const evs=project(u4dState,t);
+  evs.forEach(ev=>{
+    const fieldC=document.getElementById('field-canvas');
+    if(fieldC)spawnParticlesForEvent(ev,fieldC.width,fieldC.height);
+    addZPPoint(ev,t);
+  });
+
+  updateParticles(
+    (document.getElementById('sim-canvas')?.width)||400,
+    (document.getElementById('sim-canvas')?.height)||300
+  );
+
+  // Draw all active canvases
+  const views={
+    field:[['field-canvas',drawField]],
+    sim:  [['sim-canvas',drawSim]],
+    scope:[['scope-canvas',drawScope]],
+    zplane:[['zplane-canvas',drawZPlane]],
+    all:  [['field-mini',drawField],['sim-mini',drawSim],['scope-mini',drawScope],['zplane-mini',drawZPlane]],
+  };
+  const toRender=views[currentView]||[];
+  toRender.forEach(([id,fn])=>{
+    const c=document.getElementById(id); if(!c)return;
+    resizeCanvas(c);
+    fn(c.getContext('2d'),c.width,c.height,currentView==='all');
+  });
+
+  // Clean dead z-plane points
+  zpPoints=zpPoints.filter(p=>p.life>0);
+}
+
+function startIdleAnim(){
+  // Non-blocking field render even when not playing
+  const render=()=>{
+    const fieldC=document.getElementById('field-canvas');
+    if(fieldC&&currentView==='field'){
+      resizeCanvas(fieldC);
+      drawField(fieldC.getContext('2d'),fieldC.width,fieldC.height);
+    }
+    if(!isPlaying)requestAnimationFrame(render);
+  };
+  requestAnimationFrame(render);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CASL: ADD EVENT → Bridge to UPDATE4D
+// ═══════════════════════════════════════════════════════════════════════════
+async function addEvent(ev) {
+  const hash = await sha256({...ev, _p:prevHash});
+  const tokens = (ev.type==='USER_MESSAGE'||ev.type==='AI_RESPONSE')
+    ? tokenizeText(ev.text||ev.response||'')
+    : [];
+  const entry = {hash, parentHash:prevHash, event:ev, tokens, ipfsCid:null};
+  prevHash = hash;
+  log.push(entry);
+  const idx = log.length-1;
+
+  // Update time travel slider
+  const sl=$('slider'); sl.max=idx; sl.disabled=false;
+  if(ttIdx===null) sl.value=idx;
+
+  // Update header counts
+  $('hdr-ev').textContent = log.length;
+  renderEvEntry(entry, idx);
+  $('nev-msg')&&$('nev-msg').remove();
+
+  // ▶ THE BRIDGE: sync tokens to UPDATE4D projection engine
+  syncTokensFromLog();
+  setEngineStatus(log.length>0?'running':'idle',log.length>0?'PROJECTING':'IDLE');
+
+  // IPFS store
+  if(ipfsOn&&heliaJson) ipfsAdd(entry,idx).catch(()=>{});
+
+  // Sync to B (simulated network delay)
+  setTimeout(()=>{
+    showSync(hash);
+    setTimeout(()=>{
+      synced=idx+1;
+      $('hdr-syn').textContent=synced;
+      const dot=$('dot-'+idx); const sha=$('sha-'+idx);
+      if(dot){dot.classList.add('synced');dot.textContent='●';}
+      if(sha)sha.classList.add('synced');
+      renderB();
+    },550);
+  },150);
+
+  return hash;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ENGINE STATUS
+// ═══════════════════════════════════════════════════════════════════════════
+function setEngineStatus(cls,text){
+  document.getElementById('eng-dot').className=`eng-dot ${cls}`;
+  document.getElementById('eng-status').textContent=text;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SEND MESSAGE
+// ═══════════════════════════════════════════════════════════════════════════
+async function sendMsg(){
+  const inp=$('msginp'); const text=inp.value.trim();
+  if(!text||busy)return;
+  inp.value=''; busy=true; updateInput();
+
+  await addEvent({type:'USER_MESSAGE',text,ts:Date.now()});
+  renderA();
+
+  const state=replay(log.map(e=>e.event));
+  const msgs=state.messages.map(m=>({role:m.role,content:m.text}));
+  const model=$('modelinp').value.trim()||'llama3.2';
+  const efHash=await sha256({messages:msgs,model});
+
+  await addEvent({type:'AI_REQUEST',promptHash:efHash,model,ts:Date.now()});
+  renderA();
+
+  let response;
+  if(cache.has(efHash)){
+    response=cache.get(efHash);
+  } else {
+    showThink();
+    response=await callOllama(msgs,model);
+    hideThink();
+    cache.set(efHash,response);
+  }
+
+  const rHash=await sha256(response);
+  await addEvent({type:'AI_RESPONSE',response,responseHash:rHash,ts:Date.now()});
+  busy=false; updateInput(); renderA();
+
+  // Auto-start playback on first AI response
+  if(!isPlaying&&log.length>=3) startPlayback();
+}
+
+async function callOllama(messages,model){
+  try{
+    const r=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,messages,stream:false})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return(await r.json()).message?.content||'[empty]';
+  }catch(e){
+    const m=e.message||'';
+    if(m.includes('fetch')||m.includes('NetworkError')||m.includes('CORS'))
+      return`Ollama unreachable.\n\nStart with:\n  OLLAMA_ORIGINS="*" ollama serve\n\nPull a model:\n  ollama pull llama3.2\n\n(This error IS an event — hashed, projected to sound, replayable.)`;
+    return'[error: '+m+']';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════════════════
+function renderA(){
+  const evs=ttIdx!==null?log.slice(0,ttIdx+1).map(e=>e.event):log.map(e=>e.event);
+  renderChat('chat-a',replay(evs),'var(--green)','emp-a',true);
+  const tt=ttIdx!==null;
+  $('ma-title').style.color=tt?'var(--amber)':'var(--green)';
+  const b=$('ma-badge');
+  if(tt){
+    b.style.cssText='color:var(--amber);border-color:#ffaa0022;background:#ffaa0008';
+    b.textContent='⏪ t='+(ttIdx+1);
+    $('ttbar').style.display='flex';
+    $('inparea').style.display='none';
+    $('tt-i').textContent=ttIdx+1; $('tt-n').textContent=log.length;
+  }else{
+    b.style.cssText='color:var(--green);border-color:#00e07a22;background:#00e07a08';
+    b.textContent='LIVE';
+    $('ttbar').style.display='none';
+    $('inparea').style.display='flex';
+    updateInput();
+  }
+}
+function renderB(){
+  if(importedEvs){renderBFromImport();return;}
+  const evs=log.slice(0,synced).map(e=>e.event);
+  renderChat('chat-b',replay(evs),'var(--blue)','emp-b',false);
+  $('reptxt').textContent=synced===0?'no events synced':`replayed ${synced} event${synced!==1?'s':''} · same sound · no hidden state`;
+}
+function renderBFromImport(){
+  const evs=importedEvs.map(e=>e.event);
+  renderChat('chat-b',replay(evs),'var(--blue)','emp-b',false);
+  $('reptxt').textContent=`replayed ${importedEvs.length} events from ipfs · identical sound projection`;
+}
+function clearImport(){importedEvs=null;$('cid-paste').value='';$('fetch-st').textContent='';renderB();}
+
+function renderChat(id,state,accent,emptyId,isA){
+  const c=$(id); c.innerHTML='';
+  if(!state.messages.length){
+    const d=mk('div','empty'); d.id=emptyId;
+    d.innerHTML=isA?'send a message<small>events hashed · tokenized · projected to sound</small>':'awaiting sync<small>identical sound from hashes alone</small>';
+    c.appendChild(d);
+  }else{
+    state.messages.forEach(m=>{
+      const d=mk('div','msg '+m.role);
+      const r=mk('div','mrole '+m.role); r.textContent=m.role; r.style.color=m.role==='user'?accent:'';
+      const t=mk('div','mtext'); t.textContent=m.text;
+      d.append(r,t); c.appendChild(d);
+    });
+  }
+  if(state.pending){const th=mk('div','thinking');th.innerHTML='assistant &nbsp;<span class="cur">▋</span>';c.appendChild(th);}
+  c.scrollTop=c.scrollHeight;
+}
+
+function renderEvEntry(entry,idx){
+  const C={USER_MESSAGE:'var(--green)',AI_REQUEST:'var(--amber)',AI_RESPONSE:'var(--blue)'};
+  const L={USER_MESSAGE:'USR_MSG',AI_REQUEST:'AI_REQ',AI_RESPONSE:'AI_RES'};
+  const col=C[entry.event.type]||'var(--dim)';
+  const lbl=L[entry.event.type]||entry.event.type;
+  const h=entry.hash, p=entry.parentHash;
+  const tokCount=entry.tokens?.length||0;
+
+  const d=mk('div','ev'); d.id='ev-'+idx; d.onclick=()=>onEvClick(idx);
+  d.innerHTML=
+    `<div class="evtype"><span style="color:${col}">◆</span><span style="color:${col}">${lbl}</span><span class="syndot" id="dot-${idx}">○</span></div>`+
+    `<div class="evsha" id="sha-${idx}">sha:${h.slice(0,8)}…</div>`+
+    (tokCount?`<div class="evtok">⟨${tokCount} tokens→sound⟩</div>`:`<div class="evpar">↑ ${p?p.slice(0,6):'genesis'}</div>`)+
+    `<div class="evcid" id="cid-${idx}"></div>`;
+  $('evlog').appendChild(d);
+  $('evlog').scrollTop=$('evlog').scrollHeight;
+}
+
+function showThink(){if($('think'))return;const d=mk('div','thinking');d.id='think';d.innerHTML='assistant &nbsp;<span class="cur">▋</span>';const c=$('chat-a');c.appendChild(d);c.scrollTop=c.scrollHeight;}
+function hideThink(){$('think')&&$('think').remove();}
+function showSync(hash){const el=$('syncind');el.textContent='→ '+hash.slice(0,8)+'… →';el.style.display='block';setTimeout(()=>el.style.display='none',600);}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TIME TRAVEL
+// ═══════════════════════════════════════════════════════════════════════════
+function onSlider(v){ttIdx=v;$('ttpos').textContent=`t=${v+1}/${log.length}`;hlEv(v);renderA();syncTokensFromLog();}
+function onEvClick(i){if(ttIdx===i){returnToLive();return;}ttIdx=i;$('slider').value=i;$('ttpos').textContent=`t=${i+1}/${log.length}`;hlEv(i);renderA();syncTokensFromLog();}
+function returnToLive(){ttIdx=null;$('slider').value=log.length-1;$('ttpos').textContent='';hlEv(null);renderA();syncTokensFromLog();}
+function hlEv(sel){log.forEach((_,i)=>{const e=$('ev-'+i);if(e)e.classList.toggle('sel',i===sel);});}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════════════════════════════════
+function updateInput(){const i=$('msginp');i.disabled=busy;$('sbtn').disabled=busy||!i.value.trim();}
+function syncBtn(){$('sbtn').disabled=busy||!$('msginp').value.trim();}
+function onKey(e){syncBtn();if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  IPFS (Helia) — same as CASL
+// ═══════════════════════════════════════════════════════════════════════════
+async function ipfsAdd(entry,idx){
+  const cid=await heliaJson.add(entry.event); const str=cid.toString();
+  entry.ipfsCid=str; pinCount++;
+  $('hdr-cid').textContent=pinCount;
+  $('ist-pins').textContent=pinCount;
+  const cidEl=$('cid-'+idx);
+  if(cidEl){cidEl.textContent=str.slice(0,9)+'…'+str.slice(-4);cidEl.classList.add('on');}
+  if(kuboOnline){
+    try{const form=new FormData();form.append('file',new Blob([JSON.stringify(entry.event)],{type:'application/json'}));
+    await fetch('http://localhost:5001/api/v0/dag/put?store-codec=dag-json&input-codec=dag-json&pin=true',{method:'POST',body:form});}catch{}
+  }
+  return str;
+}
+
+async function toggleIPFS(){
+  if(ipfsOn){
+    ipfsOn=false; if(peerTimer){clearInterval(peerTimer);peerTimer=null;}
+    if(helia){try{await helia.stop();}catch{}helia=null;heliaJson=null;}
+    $('ipfs-tog').textContent='ENABLE'; $('ipfs-tog').classList.remove('on');
+    $('ipfs-st').textContent='off · local sync only'; $('ipfs-st').className='';
+    $('istat-row').classList.remove('on'); $('iact-row').classList.remove('on');
+    $('kubo-row').classList.remove('on'); $('ipfs-import').classList.remove('on');
+    document.querySelectorAll('.evcid').forEach(el=>el.classList.remove('on'));
+    $('hdr-cid').textContent='—'; return;
+  }
+  const tog=$('ipfs-tog'); tog.textContent='…'; tog.disabled=true;
+  setIPFSSt('spin','loading helia…');
+  try{
+    const [{createHelia},{json}]=await Promise.all([import('https://esm.sh/helia'),import('https://esm.sh/@helia/json')]);
+    setIPFSSt('spin','starting libp2p…');
+    helia=await createHelia(); heliaJson=json(helia); ipfsOn=true;
+    tog.textContent='ON'; tog.classList.add('on'); tog.disabled=false;
+    $('istat-row').classList.add('on'); $('iact-row').classList.add('on');
+    $('ipfs-import').classList.add('on');
+    setIPFSSt('ok','helia ready');
+    if(log.length>0){setIPFSSt('spin','backfilling…');for(let i=0;i<log.length;i++)await ipfsAdd(log[i],i).catch(()=>{});setIPFSSt('ok','helia ready · '+pinCount+' pinned');}
+    updatePeers(); peerTimer=setInterval(updatePeers,3000); checkKubo();
+  }catch(e){tog.textContent='RETRY';tog.disabled=false;setIPFSSt('err','error: '+(e.message||e));}
+}
+function setIPFSSt(cls,txt){const el=$('ipfs-st');el.textContent=txt;el.className=cls;}
+function updatePeers(){if(!helia)return;try{const n=helia.libp2p.getPeers().length;$('ist-peers').textContent=n;$('ist-net').textContent=n>0?'online':'local';if(n>0)setIPFSSt('ok','helia ready · '+n+' peer'+(n!==1?'s':'')+(kuboOnline?' · kubo':''));}catch{}}
+async function checkKubo(){
+  const row=$('kubo-row');const dot=$('kdot');const txt=$('kubo-txt');row.classList.add('on');
+  try{const r=await fetch('http://localhost:5001/api/v0/id',{method:'POST'});if(!r.ok)throw 0;const d=await r.json();kuboOnline=true;dot.classList.add('on');txt.textContent='kubo: '+(d.ID||'').slice(0,12)+'…';setIPFSSt('ok','helia + kubo · network persistence on');}
+  catch{kuboOnline=false;txt.textContent='kubo: not running';}
+}
+function exportCIDs(){
+  const cids=log.map(e=>e.ipfsCid).filter(Boolean);
+  if(!cids.length){setIPFSSt('err','no CIDs yet');setTimeout(()=>setIPFSSt('ok','helia ready'),2e3);return;}
+  const out=JSON.stringify(cids,null,2);
+  navigator.clipboard.writeText(out).then(()=>{setIPFSSt('ok',cids.length+' CIDs copied');setTimeout(()=>setIPFSSt('ok','helia ready'),2500);}).catch(()=>{prompt('Copy CIDs:',out);});
+}
+function copyPeerId(){if(!helia)return;try{const id=helia.libp2p.peerId.toString();navigator.clipboard.writeText(id).then(()=>{setIPFSSt('ok','peer ID copied: '+id.slice(0,12)+'…');setTimeout(()=>setIPFSSt('ok','helia ready'),2500);});}catch{}}
+
+async function fetchFromIPFS(){
+  const raw=$('cid-paste').value.trim(); if(!raw)return;
+  let cids; try{cids=JSON.parse(raw);if(!Array.isArray(cids)||!cids.length)throw new Error('expected array');}catch(e){$('fetch-st').textContent='✗ '+e.message;return;}
+  if(!heliaJson){$('fetch-st').textContent='✗ enable IPFS first';return;}
+  $('fetch-st').textContent='resolving multiformats…';
+  const {CID}=await import('https://esm.sh/multiformats/cid');
+  const fetched=[];
+  for(let i=0;i<cids.length;i++){
+    $('fetch-st').textContent=`fetching ${i+1}/${cids.length}…`;
+    try{const cid=CID.parse(cids[i]);const data=await heliaJson.get(cid);fetched.push({event:data,hash:cids[i],parentHash:cids[i-1]||null,ipfsCid:cids[i],tokens:tokenizeText((data.text||data.response||''))});}
+    catch(e){$('fetch-st').textContent=`✗ CID ${i+1}: ${e.message}`;return;}
+  }
+  importedEvs=fetched;
+  renderBFromImport();
+  // Sync tokens from imported events — B gets IDENTICAL sound
+  const events=fetched.map(e=>e.event);
+  const tokens=deriveTokensFromLog(events);
+  u4dDispatch({type:'SET_TOKENS',tokens});
+  $('fetch-st').textContent=`✓ replayed ${fetched.length} events · sound identical to origin`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+function $(id){return document.getElementById(id);}
+function mk(tag,cls){const d=document.createElement(tag);d.className=cls;return d;}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════════════
+(function init(){
+  switchView('field');
+  initParticles(80,400,300);
+  startIdleAnim();
+  setEngineStatus('idle','IDLE');
+})();
+</script>
+
+
+</body></html>
