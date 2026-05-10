@@ -1,0 +1,739 @@
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CASL — Content-Addressed Session Layer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:    #07090d;
+  --bg1:   #0b0e14;
+  --bg2:   #0e1218;
+  --bg3:   #12161f;
+  --border: #1c2230;
+  --border2: #232c3a;
+  --text:  #b8c4d4;
+  --dim:   #3e4e62;
+  --muted: #232c3a;
+  --green: #00e07a;
+  --blue:  #00aaff;
+  --amber: #ffaa00;
+  --violet:#a78bfa;
+  --font:  'JetBrains Mono', 'Courier New', monospace;
+}
+
+html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:var(--font); font-size:12px; }
+::-webkit-scrollbar { width:3px; height:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+@keyframes fadeUp  { from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)} }
+@keyframes blink   { 0%,100%{opacity:1}50%{opacity:0} }
+@keyframes pulse   { 0%,100%{opacity:1}50%{opacity:.2} }
+@keyframes slideIn { from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)} }
+@keyframes spin    { to{transform:rotate(360deg)} }
+@keyframes glow    { 0%,100%{box-shadow:0 0 0 0 #a78bfa20}50%{box-shadow:0 0 8px 2px #a78bfa18} }
+
+#app { display:flex; flex-direction:column; height:100vh; }
+
+/* ── HEADER ── */
+#hdr { display:flex;align-items:center;justify-content:space-between;padding:9px 18px;border-bottom:1px solid var(--border);background:var(--bg1);flex-shrink:0; }
+.logo { display:flex;align-items:center;gap:10px; }
+.hex      { color:var(--green);font-size:17px; }
+.logotxt  { font-size:13px;font-weight:700;letter-spacing:3px;color:#fff; }
+.logosub  { font-size:10px;color:var(--dim); }
+.hstats   { display:flex;gap:20px; }
+.stat .v  { font-size:15px;font-weight:700;text-align:right; }
+.stat .l  { font-size:9px;letter-spacing:2px;color:var(--dim); }
+
+/* ── BODY ── */
+#body { display:flex;flex:1;overflow:hidden; }
+
+/* ── MACHINES ── */
+.machine { flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--border);transition:border-color .3s; }
+#mb { border-right:none;border-left:1px solid var(--border); }
+
+.mhdr { display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--bg1);flex-shrink:0; }
+.mtitle { font-size:10px;font-weight:700;letter-spacing:3px; }
+.msub   { font-size:9px;color:var(--dim);margin-top:2px; }
+.badge  { font-size:9px;letter-spacing:1.5px;padding:3px 8px;border-radius:2px;border:1px solid;white-space:nowrap; }
+
+.chatarea { flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:9px; }
+.empty    { text-align:center;color:var(--muted);font-size:11px;line-height:2;margin:auto;pointer-events:none; }
+.empty small { color:var(--border2);font-size:9px;display:block; }
+
+.msg { display:flex;flex-direction:column;gap:3px;padding:9px 11px;border-radius:2px;border:1px solid;max-width:92%;animation:fadeUp .18s ease; }
+.msg.user      { align-self:flex-end; }
+.msg.assistant { align-self:flex-start; }
+.mrole { font-size:9px;font-weight:600;letter-spacing:1.5px; }
+.mtext { font-size:11px;line-height:1.65;color:var(--text);white-space:pre-wrap;word-break:break-word; }
+
+#ma .msg.user      { background:#09180f;border-color:#00e07a14; }
+#ma .msg.assistant { background:var(--bg2);border-color:var(--border); }
+#ma .mrole.user    { color:var(--green); }
+#mb .msg.user      { background:#081520;border-color:#00aaff14; }
+#mb .msg.assistant { background:var(--bg2);border-color:var(--border); }
+#mb .mrole.user    { color:var(--blue); }
+.mrole.assistant   { color:var(--dim); }
+
+.thinking { align-self:flex-start;padding:9px 11px;background:var(--bg2);border:1px solid var(--border);border-radius:2px;color:var(--dim);font-size:11px; }
+.cur { animation:blink .8s infinite; }
+
+.inparea { display:flex;gap:7px;padding:10px 12px;flex-shrink:0;border-top:1px solid var(--border);background:var(--bg1); }
+.inp  { flex:1;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:11px;padding:7px 11px;border-radius:2px;outline:none;transition:border-color .2s; }
+.inp:focus    { border-color:var(--green); }
+.inp:disabled { opacity:.35; }
+.sbtn { background:var(--green);color:#000;border:none;font-family:var(--font);font-size:13px;font-weight:700;padding:7px 13px;cursor:pointer;border-radius:2px; }
+.sbtn:disabled { opacity:.25;cursor:default; }
+
+.ttbar { display:none;align-items:center;justify-content:space-between;padding:8px 14px;border-top:1px solid var(--border);background:#0c0a00;color:var(--amber);font-size:9px;letter-spacing:1px;flex-shrink:0; }
+.ttbtn { background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:var(--font);font-size:9px;letter-spacing:1px;padding:3px 8px;cursor:pointer;border-radius:2px; }
+.ttbtn:hover { background:var(--amber);color:#000; }
+
+.repfoot { padding:7px 14px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-shrink:0;background:var(--bg1); }
+.reptxt  { font-size:9px;color:var(--dim); }
+
+/* ── MACHINE B: IPFS IMPORT ── */
+#ipfs-import { display:none;padding:10px 12px;border-top:1px solid var(--border);background:var(--bg1);flex-shrink:0; }
+#ipfs-import.on { display:block; }
+.imp-lbl  { font-size:9px;letter-spacing:1.5px;color:var(--violet);margin-bottom:6px; }
+#cid-paste { width:100%;background:var(--bg2);border:1px solid #a78bfa20;color:var(--text);font-family:var(--font);font-size:9px;padding:6px 8px;border-radius:2px;outline:none;resize:none;height:50px; }
+#cid-paste:focus { border-color:#a78bfa35; }
+.imp-row  { display:flex;gap:6px;margin-top:6px; }
+.imp-btn  { flex:1;background:transparent;border:1px solid #a78bfa25;color:var(--violet);font-family:var(--font);font-size:9px;letter-spacing:.5px;padding:5px 0;cursor:pointer;border-radius:2px;transition:all .15s; }
+.imp-btn:hover { background:#a78bfa10;border-color:#a78bfa40; }
+.imp-btn:disabled { opacity:.3;cursor:default; }
+#fetch-st { font-size:9px;color:var(--dim);margin-top:5px;min-height:13px; }
+
+/* ── CENTER ── */
+#ctr { width:220px;flex-shrink:0;display:flex;flex-direction:column;background:var(--bg1);border-left:1px solid var(--border);border-right:1px solid var(--border); }
+.ctrtitle { padding:9px 12px;font-size:9px;letter-spacing:3px;color:var(--dim);border-bottom:1px solid var(--border);font-weight:600;flex-shrink:0; }
+
+#evlog { flex:1;overflow-y:auto;padding:7px;display:flex;flex-direction:column;gap:2px; }
+.nev  { color:var(--muted);font-size:10px;text-align:center;padding:18px 8px;line-height:2; }
+.nev small { color:var(--border2);font-size:9px;display:block; }
+
+.ev { padding:6px 8px;border-radius:2px;border:1px solid transparent;cursor:pointer;transition:all .12s;animation:slideIn .15s ease; }
+.ev:hover { background:var(--bg2);border-color:var(--border2); }
+.ev.sel   { background:#0a0800;border-color:#ffaa0025; }
+
+.evtype { font-size:9px;font-weight:600;letter-spacing:.5px;display:flex;align-items:center;gap:4px; }
+.evsha  { font-size:8px;color:var(--muted);margin-top:2px;transition:color .3s; }
+.evsha.synced { color:var(--dim); }
+.evcid  { font-size:8px;color:#a78bfa50;margin-top:1px;display:none; }
+.evcid.on { display:block; }
+.evpar  { font-size:8px;color:var(--border2);margin-top:1px; }
+.syndot { margin-left:auto;font-size:7px;color:var(--border2);transition:color .3s; }
+.syndot.synced { color:var(--green); }
+
+#syncind { display:none;padding:5px 12px;font-size:9px;letter-spacing:1px;color:var(--amber);text-align:center;border-top:1px solid var(--border);animation:pulse .5s ease; }
+
+#ttctrl { border-top:1px solid var(--border);padding:10px 12px;flex-shrink:0; }
+#ttlbl  { font-size:9px;letter-spacing:1.5px;color:var(--dim);margin-bottom:7px;display:flex;justify-content:space-between; }
+#slider { width:100%;cursor:pointer;accent-color:var(--amber); }
+
+#modelcfg { padding:8px 12px;border-top:1px solid var(--border);flex-shrink:0; }
+#modelcfg label { font-size:9px;letter-spacing:1.5px;color:var(--dim);display:block;margin-bottom:4px; }
+#modelinp { width:100%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:10px;padding:4px 8px;border-radius:2px;outline:none; }
+#modelinp:focus { border-color:var(--amber); }
+
+/* ── IPFS PANEL ── */
+#ipfs-panel { border-top:1px solid var(--border);padding:10px 12px;flex-shrink:0; }
+.iph-row  { display:flex;align-items:center;justify-content:space-between;margin-bottom:7px; }
+.iph-lbl  { font-size:9px;letter-spacing:2px;color:var(--dim); }
+
+#ipfs-tog {
+  background:transparent;border:1px solid var(--border2);color:var(--dim);
+  font-family:var(--font);font-size:9px;letter-spacing:1px;padding:3px 9px;
+  cursor:pointer;border-radius:2px;transition:all .2s;
+}
+#ipfs-tog.on  { border-color:#a78bfa40;color:var(--violet);background:#a78bfa08;animation:glow 2.5s infinite; }
+#ipfs-tog:hover { border-color:var(--border);color:var(--text); }
+
+#ipfs-st      { font-size:9px;color:var(--dim);min-height:12px; }
+#ipfs-st.ok   { color:var(--violet); }
+#ipfs-st.err  { color:#ff4455; }
+#ipfs-st.spin::after { content:'';display:inline-block;width:7px;height:7px;border:1px solid #a78bfa30;border-top-color:var(--violet);border-radius:50%;animation:spin .6s linear infinite;margin-left:5px;vertical-align:middle; }
+
+.istat-row { display:none;justify-content:space-between;margin-top:8px; }
+.istat-row.on { display:flex; }
+.ist .iv { font-size:11px;font-weight:600;color:var(--violet); }
+.ist .il { font-size:8px;letter-spacing:1px;color:var(--dim);margin-top:1px; }
+
+.iact-row { display:none;gap:5px;margin-top:8px; }
+.iact-row.on { display:flex; }
+.iact { flex:1;background:transparent;border:1px solid #a78bfa20;color:var(--violet);font-family:var(--font);font-size:8px;letter-spacing:.5px;padding:4px 0;cursor:pointer;border-radius:2px;transition:all .15s; }
+.iact:hover { background:#a78bfa0e;border-color:#a78bfa35; }
+
+.kubo-row { display:none;align-items:center;gap:5px;margin-top:7px;font-size:8px;color:var(--dim); }
+.kubo-row.on { display:flex; }
+.kdot { width:5px;height:5px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s; }
+.kdot.on { background:var(--green); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="hdr">
+    <div class="logo">
+      <span class="hex">⬡</span>
+      <span class="logotxt">CASL</span>
+      <span class="logosub">/ content-addressed session layer</span>
+    </div>
+    <div class="hstats">
+      <div class="stat"><div class="v" id="sv-ev" style="color:var(--green)">3</div><div class="l">EVENTS</div></div>
+      <div class="stat"><div class="v" id="sv-syn" style="color:var(--blue)">3</div><div class="l">SYNCED</div></div>
+      <div class="stat"><div class="v" id="sv-cac" style="color:var(--amber)">1</div><div class="l">CACHED</div></div>
+      <div class="stat"><div class="v" id="sv-cid" style="color:var(--violet)">—</div><div class="l">IPFS</div></div>
+    </div>
+  </div>
+
+  <div id="body">
+
+    <!-- MACHINE A -->
+    <div class="machine" id="ma">
+      <div class="mhdr">
+        <div>
+          <div class="mtitle" id="ma-title" style="color:var(--green)">MACHINE A</div>
+          <div class="msub">origin session</div>
+        </div>
+        <div class="badge" id="ma-badge" style="color: var(--green); border-color: rgba(0, 224, 122, 0.145); background: rgba(0, 224, 122, 0.03);">LIVE</div>
+      </div>
+      <div class="chatarea" id="chat-a"><div class="msg user"><div class="mrole user" style="color: var(--green);">user</div><div class="mtext">hello</div></div><div class="msg assistant"><div class="mrole assistant">assistant</div><div class="mtext">Hello! It's nice to meet you. Is there something I can help you with, or would you like to chat?</div></div></div>
+      <div class="ttbar" id="ttbar" style="display: none;">
+        <span>⏪ TIME TRAVEL &nbsp;·&nbsp; event <span id="tt-i">1</span> / <span id="tt-n">1</span></span>
+        <button class="ttbtn" onclick="returnToLive()">RETURN TO LIVE</button>
+      </div>
+      <div class="inparea" id="inparea" style="display: flex;">
+        <input class="inp" id="msginp" placeholder="send a message..." onkeydown="onKey(event)" oninput="syncBtn()">
+        <button class="sbtn" id="sbtn" onclick="sendMsg()" disabled="">↵</button>
+      </div>
+    </div>
+
+    <!-- CENTER -->
+    <div id="ctr">
+      <div class="ctrtitle">EVENT LOG</div>
+      <div id="evlog">
+        
+      <div class="ev" id="ev-0"><div class="evtype"><span style="color:var(--green)">◆</span><span style="color:var(--green)">USR_MSG</span><span class="syndot synced" id="dot-0">●</span></div><div class="evsha synced" id="sha-0">sha: 5c7a92fb…ad97</div><div class="evcid" id="cid-0"></div></div><div class="ev" id="ev-1"><div class="evtype"><span style="color:var(--amber)">◆</span><span style="color:var(--amber)">AI_REQ</span><span class="syndot synced" id="dot-1">●</span></div><div class="evsha synced" id="sha-1">sha: 89402198…dac0</div><div class="evcid" id="cid-1"></div><div class="evpar">↑ 5c7a92…</div></div><div class="ev" id="ev-2"><div class="evtype"><span style="color:var(--blue)">◆</span><span style="color:var(--blue)">AI_RES</span><span class="syndot synced" id="dot-2">●</span></div><div class="evsha synced" id="sha-2">sha: dfc8b69a…9cb1</div><div class="evcid" id="cid-2"></div><div class="evpar">↑ 894021…</div></div></div>
+      <div id="syncind" style="display: none;">→ dfc8b69a… →</div>
+      <div id="ttctrl">
+        <div id="ttlbl"><span>TIME TRAVEL</span><span id="ttpos" style="color:var(--amber)"></span></div>
+        <input type="range" id="slider" min="0" max="2" value="0" oninput="onSlider(+this.value)">
+      </div>
+      <div id="modelcfg">
+        <label>OLLAMA MODEL</label>
+        <input id="modelinp" value="llama3.2" placeholder="llama3.2">
+      </div>
+      <!-- IPFS -->
+      <div id="ipfs-panel">
+        <div class="iph-row">
+          <span class="iph-lbl">IPFS / HELIA</span>
+          <button id="ipfs-tog" onclick="toggleIPFS()">ENABLE</button>
+        </div>
+        <div id="ipfs-st">off · local sync only</div>
+
+        <div class="istat-row" id="istat-row">
+          <div class="ist"><div class="iv" id="ist-peers">0</div><div class="il">PEERS</div></div>
+          <div class="ist"><div class="iv" id="ist-pins">0</div><div class="il">PINNED</div></div>
+          <div class="ist"><div class="iv" id="ist-net">local</div><div class="il">NETWORK</div></div>
+        </div>
+
+        <div class="kubo-row" id="kubo-row">
+          <div class="kdot" id="kdot"></div>
+          <span id="kubo-txt">checking kubo daemon…</span>
+        </div>
+
+        <div class="iact-row" id="iact-row">
+          <button class="iact" onclick="exportCIDs()">EXPORT CIDs</button>
+          <button class="iact" onclick="copyPeerId()">PEER ID</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MACHINE B -->
+    <div class="machine" id="mb">
+      <div class="mhdr">
+        <div>
+          <div class="mtitle" style="color:var(--blue)">MACHINE B</div>
+          <div class="msub">reconstructed from hashes only</div>
+        </div>
+        <div class="badge" style="color:var(--blue);border-color:#00aaff25;background:#00aaff08">REPLICA</div>
+      </div>
+      <div class="chatarea" id="chat-b"><div class="msg user"><div class="mrole user" style="color: var(--blue);">user</div><div class="mtext">hello</div></div><div class="msg assistant"><div class="mrole assistant">assistant</div><div class="mtext">Hello! It's nice to meet you. Is there something I can help you with, or would you like to chat?</div></div></div>
+      <div class="repfoot">
+        <span style="color:var(--border2)">⬡</span>
+        <span class="reptxt" id="reptxt">replayed 3 events · no hidden state</span>
+      </div>
+      <!-- IPFS import panel (shown when IPFS is on) -->
+      <div id="ipfs-import">
+        <div class="imp-lbl">⬡ RECONSTRUCT FROM IPFS CIDs</div>
+        <textarea id="cid-paste" placeholder="paste CID list from machine A
+[&quot;bafyreia...&quot;, &quot;bafyreia...&quot;]"></textarea>
+        <div class="imp-row">
+          <button class="imp-btn" onclick="fetchFromIPFS()">FETCH &amp; REPLAY</button>
+          <button class="imp-btn" onclick="clearImport()">CLEAR</button>
+        </div>
+        <div id="fetch-st"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────
+let log      = [];        // [{hash, parentHash, event, ipfsCid}]
+let cache    = new Map(); // effectHash → response
+let synced   = 0;
+let ttIdx    = null;
+let busy     = false;
+let prevHash = null;
+
+// IPFS
+let ipfsOn      = false;
+let helia       = null;
+let heliaJson   = null;
+let kuboOnline  = false;
+let peerTimer   = null;
+let pinCount    = 0;
+let importedEvs = null; // when set, Machine B shows this instead of synced log
+
+// ─────────────────────────────────────────────────────────────
+//  SHA-256 (Web Crypto)
+// ─────────────────────────────────────────────────────────────
+async function sha256(obj) {
+  const buf = new TextEncoder().encode(JSON.stringify(obj));
+  const h   = await crypto.subtle.digest('SHA-256', buf);
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  REDUCER  — pure, no side effects
+// ─────────────────────────────────────────────────────────────
+const INIT = { messages:[], pending:false };
+
+function reduce(s, e) {
+  switch (e.type) {
+    case 'USER_MESSAGE': return { ...s, messages:[...s.messages, {role:'user',      text:e.text}]                        };
+    case 'AI_REQUEST':   return { ...s, pending:true                                                                      };
+    case 'AI_RESPONSE':  return { ...s, pending:false, messages:[...s.messages, {role:'assistant', text:e.response}] };
+    default:             return s;
+  }
+}
+
+function replay(events) { return events.reduce(reduce, INIT); }
+
+// ─────────────────────────────────────────────────────────────
+//  ADD EVENT
+// ─────────────────────────────────────────────────────────────
+async function addEvent(ev) {
+  const hash  = await sha256({ ...ev, _p: prevHash });
+  const entry = { hash, parentHash: prevHash, event: ev, ipfsCid: null };
+  prevHash    = hash;
+  log.push(entry);
+
+  const idx = log.length - 1;
+  const sl  = $('slider');
+  sl.max = idx; sl.disabled = false;
+  if (ttIdx === null) sl.value = idx;
+  $('sv-ev').textContent = log.length;
+
+  renderEvEntry(entry, idx);
+  $('nev-msg') && $('nev-msg').remove();
+
+  // fire-and-forget IPFS store (effect runtime, outside reducer)
+  if (ipfsOn && heliaJson) ipfsAdd(entry, idx).catch(()=>{});
+
+  // sync to B with delay (simulating network)
+  setTimeout(() => {
+    showSync(hash);
+    setTimeout(() => {
+      synced = idx + 1;
+      $('sv-syn').textContent = synced;
+      const dot  = $('dot-' + idx);
+      const sha  = $('sha-' + idx);
+      if (dot) { dot.classList.add('synced'); dot.textContent = '●'; }
+      if (sha) sha.classList.add('synced');
+      renderB();
+    }, 550);
+  }, 150);
+
+  return hash;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  IPFS ADD  — stores event to Helia, shows CID
+// ─────────────────────────────────────────────────────────────
+async function ipfsAdd(entry, idx) {
+  const cid = await heliaJson.add(entry.event);
+  const str = cid.toString();
+  entry.ipfsCid = str;
+  pinCount++;
+  $('sv-cid').textContent = pinCount;
+  $('ist-pins').textContent = pinCount;
+
+  const cidEl = $('cid-' + idx);
+  if (cidEl) { cidEl.textContent = str.slice(0,10) + '…' + str.slice(-4); cidEl.classList.add('on'); }
+
+  if (kuboOnline) {
+    try {
+      const form = new FormData();
+      form.append('file', new Blob([JSON.stringify(entry.event)], {type:'application/json'}));
+      await fetch('http://localhost:5001/api/v0/dag/put?store-codec=dag-json&input-codec=dag-json&pin=true', { method:'POST', body:form });
+    } catch {}
+  }
+  return str;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  IPFS TOGGLE  — dynamic import of Helia from esm.sh
+// ─────────────────────────────────────────────────────────────
+async function toggleIPFS() {
+  if (ipfsOn) {
+    // turn off
+    ipfsOn = false;
+    if (peerTimer) { clearInterval(peerTimer); peerTimer = null; }
+    if (helia)     { try { await helia.stop(); } catch{} helia = null; heliaJson = null; }
+    $('ipfs-tog').textContent = 'ENABLE';
+    $('ipfs-tog').classList.remove('on');
+    $('ipfs-st').textContent = 'off · local sync only';
+    $('ipfs-st').className = '';
+    $('istat-row').classList.remove('on');
+    $('iact-row').classList.remove('on');
+    $('kubo-row').classList.remove('on');
+    $('ipfs-import').classList.remove('on');
+    document.querySelectorAll('.evcid').forEach(el => el.classList.remove('on'));
+    $('sv-cid').textContent = '—';
+    return;
+  }
+
+  const tog = $('ipfs-tog');
+  tog.textContent = '…'; tog.disabled = true;
+  setIPFSSt('spin', 'loading helia from esm.sh…');
+
+  try {
+    // dynamic import — no bundler needed, works in any modern browser
+    const [{ createHelia }, { json }] = await Promise.all([
+      import('https://esm.sh/helia'),
+      import('https://esm.sh/@helia/json'),
+    ]);
+
+    setIPFSSt('spin', 'starting libp2p node…');
+    helia     = await createHelia();
+    heliaJson = json(helia);
+    ipfsOn    = true;
+
+    tog.textContent = 'ON'; tog.classList.add('on'); tog.disabled = false;
+    $('istat-row').classList.add('on');
+    $('iact-row').classList.add('on');
+    $('ipfs-import').classList.add('on');
+    setIPFSSt('ok', 'helia ready');
+
+    // backfill existing events
+    if (log.length > 0) {
+      setIPFSSt('spin', 'backfilling ' + log.length + ' events…');
+      for (let i = 0; i < log.length; i++) await ipfsAdd(log[i], i).catch(()=>{});
+      setIPFSSt('ok', 'helia ready · ' + pinCount + ' pinned');
+    }
+
+    updatePeers();
+    peerTimer = setInterval(updatePeers, 3000);
+    checkKubo();
+
+  } catch(e) {
+    tog.textContent = 'RETRY'; tog.disabled = false;
+    setIPFSSt('err', 'error: ' + (e.message || e));
+  }
+}
+
+function setIPFSSt(cls, txt) {
+  const el = $('ipfs-st');
+  el.textContent = txt;
+  el.className = cls;
+}
+
+function updatePeers() {
+  if (!helia) return;
+  try {
+    const n = helia.libp2p.getPeers().length;
+    $('ist-peers').textContent = n;
+    $('ist-net').textContent   = n > 0 ? 'online' : 'local';
+    if (n > 0) setIPFSSt('ok', 'helia ready · ' + n + ' peer' + (n!==1?'s':'') + (kuboOnline?' · kubo':''));
+  } catch {}
+}
+
+async function checkKubo() {
+  const row = $('kubo-row'); const dot = $('kdot'); const txt = $('kubo-txt');
+  row.classList.add('on');
+  try {
+    const r = await fetch('http://localhost:5001/api/v0/id', { method:'POST' });
+    if (!r.ok) throw 0;
+    const d = await r.json();
+    kuboOnline = true;
+    dot.classList.add('on');
+    txt.textContent = 'kubo: ' + (d.ID||'').slice(0,16) + '…';
+    setIPFSSt('ok', 'helia + kubo · network persistence on');
+  } catch {
+    kuboOnline = false;
+    txt.textContent = 'kubo: not running (ipfs daemon --api-cors)';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  EXPORT CIDs  (Machine A → clipboard for Machine B)
+// ─────────────────────────────────────────────────────────────
+function exportCIDs() {
+  const cids = log.map(e => e.ipfsCid).filter(Boolean);
+  if (!cids.length) { setIPFSSt('err', 'no CIDs yet'); setTimeout(()=>setIPFSSt('ok','helia ready'),2e3); return; }
+  const out = JSON.stringify(cids, null, 2);
+  navigator.clipboard.writeText(out)
+    .then(()  => { setIPFSSt('ok', cids.length + ' CIDs copied'); setTimeout(()=>setIPFSSt('ok','helia ready'),2500); })
+    .catch(()  => { prompt('Copy these CIDs:', out); });
+}
+
+function copyPeerId() {
+  if (!helia) return;
+  try {
+    const id = helia.libp2p.peerId.toString();
+    navigator.clipboard.writeText(id)
+      .then(()=>{ setIPFSSt('ok', 'peer ID copied: ' + id.slice(0,16)+'…'); setTimeout(()=>setIPFSSt('ok','helia ready'),2500); });
+  } catch {}
+}
+
+// ─────────────────────────────────────────────────────────────
+//  FETCH FROM IPFS  (Machine B: reconstruct from CID list)
+// ─────────────────────────────────────────────────────────────
+async function fetchFromIPFS() {
+  const raw = $('cid-paste').value.trim();
+  if (!raw) return;
+
+  let cids;
+  try {
+    cids = JSON.parse(raw);
+    if (!Array.isArray(cids) || !cids.length) throw new Error('expected non-empty array');
+  } catch(e) { $('fetch-st').textContent = '✗ ' + e.message; return; }
+
+  if (!heliaJson) { $('fetch-st').textContent = '✗ enable IPFS first'; return; }
+
+  // parse CIDs using multiformats (already loaded as helia dependency)
+  $('fetch-st').textContent = 'resolving multiformats…';
+  const { CID } = await import('https://esm.sh/multiformats/cid');
+
+  const fetched = [];
+  for (let i = 0; i < cids.length; i++) {
+    $('fetch-st').textContent = `fetching ${i+1} / ${cids.length} from ipfs…`;
+    try {
+      const cid  = CID.parse(cids[i]);
+      const data = await heliaJson.get(cid);
+      fetched.push({ event:data, hash:cids[i], parentHash:cids[i-1]||null, ipfsCid:cids[i] });
+    } catch(e) {
+      $('fetch-st').textContent = `✗ failed at CID ${i+1}: ${e.message}`;
+      return;
+    }
+  }
+
+  importedEvs = fetched;
+  renderBFromImport();
+  $('fetch-st').textContent = `✓ replayed ${fetched.length} events from ipfs`;
+}
+
+function renderBFromImport() {
+  const events = importedEvs.map(e => e.event);
+  renderChat('chat-b', replay(events), 'var(--blue)', 'emp-b', false);
+  $('reptxt').textContent = `replayed ${importedEvs.length} events from ipfs · pure p2p`;
+}
+
+function clearImport() {
+  importedEvs = null;
+  $('cid-paste').value = '';
+  $('fetch-st').textContent = '';
+  renderB();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  SEND MESSAGE  (effect runtime — outside reducer)
+// ─────────────────────────────────────────────────────────────
+async function sendMsg() {
+  const inp  = $('msginp');
+  const text = inp.value.trim();
+  if (!text || busy) return;
+
+  inp.value = ''; busy = true; updateInput();
+
+  await addEvent({ type:'USER_MESSAGE', text, ts:Date.now() });
+  renderA();
+
+  const state  = replay(log.map(e => e.event));
+  const msgs   = state.messages.map(m => ({ role:m.role, content:m.text }));
+  const model  = $('modelinp').value.trim() || 'llama3.2';
+  const efHash = await sha256({ messages:msgs, model });
+
+  await addEvent({ type:'AI_REQUEST', promptHash:efHash, model, ts:Date.now() });
+  renderA();
+
+  let response;
+  if (cache.has(efHash)) {
+    response = cache.get(efHash);
+  } else {
+    showThink();
+    response = await callOllama(msgs, model);
+    hideThink();
+    cache.set(efHash, response);
+    $('sv-cac').textContent = cache.size;
+  }
+
+  const rHash = await sha256(response);
+  await addEvent({ type:'AI_RESPONSE', response, responseHash:rHash, ts:Date.now() });
+  busy = false; updateInput(); renderA();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  OLLAMA
+// ─────────────────────────────────────────────────────────────
+async function callOllama(messages, model) {
+  try {
+    const r = await fetch('http://localhost:11434/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ model, messages, stream:false })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return (await r.json()).message?.content || '[empty]';
+  } catch(e) {
+    const m = e.message || '';
+    if (m.includes('Failed to fetch') || m.includes('NetworkError') || m.includes('CORS'))
+      return `Ollama unreachable.\n\nStart with:\n  OLLAMA_ORIGINS="*" ollama serve\n\nPull a model:\n  ollama pull llama3.2\n\n(This error is itself an event in the log — content-addressed, replayable.)`;
+    return '[error: ' + m + ']';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER
+// ─────────────────────────────────────────────────────────────
+function renderA() {
+  const evs = ttIdx !== null
+    ? log.slice(0, ttIdx+1).map(e => e.event)
+    : log.map(e => e.event);
+
+  renderChat('chat-a', replay(evs), 'var(--green)', 'emp-a', true);
+
+  const tt = ttIdx !== null;
+  $('ma-title').style.color = tt ? 'var(--amber)' : 'var(--green)';
+  const b = $('ma-badge');
+  if (tt) {
+    b.style.cssText = 'color:var(--amber);border-color:#ffaa0025;background:#ffaa0008';
+    b.textContent   = '⏪ t=' + (ttIdx+1);
+    $('ttbar').style.display   = 'flex';
+    $('inparea').style.display = 'none';
+    $('tt-i').textContent = ttIdx+1;
+    $('tt-n').textContent = log.length;
+    $('ma').style.borderRightColor = '#ffaa0025';
+  } else {
+    b.style.cssText = 'color:var(--green);border-color:#00e07a25;background:#00e07a08';
+    b.textContent   = 'LIVE';
+    $('ttbar').style.display   = 'none';
+    $('inparea').style.display = 'flex';
+    $('ma').style.borderRightColor = '';
+    updateInput();
+  }
+}
+
+function renderB() {
+  if (importedEvs) { renderBFromImport(); return; }
+  const evs = log.slice(0, synced).map(e => e.event);
+  renderChat('chat-b', replay(evs), 'var(--blue)', 'emp-b', false);
+  $('reptxt').textContent = synced === 0
+    ? 'no events synced'
+    : `replayed ${synced} event${synced!==1?'s':''} · no hidden state`;
+}
+
+function renderChat(id, state, accent, emptyId, isA) {
+  const c = $(id);
+  c.innerHTML = '';
+
+  if (!state.messages.length) {
+    const d = mk('div','empty'); d.id = emptyId;
+    d.innerHTML = isA
+      ? 'start a conversation<small>events hashed · synced · optionally on ipfs</small>'
+      : 'awaiting sync<small>state derived from events · no hidden state</small>';
+    c.appendChild(d);
+  } else {
+    state.messages.forEach(m => {
+      const d = mk('div','msg ' + m.role);
+      const r = mk('div','mrole ' + m.role);
+      r.textContent = m.role;
+      r.style.color = m.role==='user' ? accent : '';
+      const t = mk('div','mtext');
+      t.textContent = m.text;
+      d.append(r,t); c.appendChild(d);
+    });
+  }
+
+  if (state.pending) {
+    const th = mk('div','thinking');
+    th.innerHTML = 'assistant &nbsp;<span class="cur">▋</span>';
+    c.appendChild(th);
+  }
+
+  c.scrollTop = c.scrollHeight;
+}
+
+function renderEvEntry(entry, idx) {
+  const C = { USER_MESSAGE:'var(--green)', AI_REQUEST:'var(--amber)', AI_RESPONSE:'var(--blue)' };
+  const L = { USER_MESSAGE:'USR_MSG', AI_REQUEST:'AI_REQ', AI_RESPONSE:'AI_RES' };
+  const col = C[entry.event.type] || 'var(--dim)';
+  const lbl = L[entry.event.type] || entry.event.type;
+  const h   = entry.hash, p = entry.parentHash;
+
+  const d  = mk('div','ev'); d.id = 'ev-' + idx; d.onclick = () => onEvClick(idx);
+  d.innerHTML =
+    `<div class="evtype"><span style="color:${col}">◆</span><span style="color:${col}">${lbl}</span><span class="syndot" id="dot-${idx}">○</span></div>` +
+    `<div class="evsha" id="sha-${idx}">sha: ${h.slice(0,8)}…${h.slice(-4)}</div>` +
+    `<div class="evcid" id="cid-${idx}"></div>` +
+    (p ? `<div class="evpar">↑ ${p.slice(0,6)}…</div>` : '');
+
+  $('evlog').appendChild(d);
+  $('evlog').scrollTop = $('evlog').scrollHeight;
+}
+
+function showThink() {
+  if ($('think')) return;
+  const d = mk('div','thinking'); d.id='think';
+  d.innerHTML='assistant &nbsp;<span class="cur">▋</span>';
+  const c=$('chat-a'); c.appendChild(d); c.scrollTop=c.scrollHeight;
+}
+function hideThink() { $('think')&&$('think').remove(); }
+
+function showSync(hash) {
+  const el=$('syncind');
+  el.textContent='→ '+hash.slice(0,8)+'… →';
+  el.style.display='block';
+  setTimeout(()=>el.style.display='none',600);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  TIME TRAVEL
+// ─────────────────────────────────────────────────────────────
+function onSlider(v) { ttIdx=v; $('ttpos').textContent=`t=${v+1}/${log.length}`; hlEv(v); renderA(); }
+function onEvClick(i) { if(ttIdx===i){returnToLive();return;} ttIdx=i; $('slider').value=i; $('ttpos').textContent=`t=${i+1}/${log.length}`; hlEv(i); renderA(); }
+function returnToLive() { ttIdx=null; $('slider').value=log.length-1; $('ttpos').textContent=''; hlEv(null); renderA(); }
+function hlEv(sel) { log.forEach((_,i)=>{ const e=$('ev-'+i); if(e) e.classList.toggle('sel',i===sel); }); }
+
+// ─────────────────────────────────────────────────────────────
+//  INPUT HELPERS
+// ─────────────────────────────────────────────────────────────
+function updateInput() { const i=$('msginp'); i.disabled=busy; $('sbtn').disabled=busy||!i.value.trim(); }
+function syncBtn()     { $('sbtn').disabled=busy||!$('msginp').value.trim(); }
+function onKey(e)      { syncBtn(); if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();} }
+
+function $(id)       { return document.getElementById(id); }
+function mk(tag,cls) { const d=document.createElement(tag); d.className=cls; return d; }
+</script>
+
+
+</body></html>
